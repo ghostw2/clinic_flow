@@ -1,0 +1,17 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker local overrides
+docker-compose.override.yml
+
+# Secrets / local env (covered by sub-project ignores too)
+.env
+.env.*
+!.env.example

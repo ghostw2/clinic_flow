@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: clinicflow_db
+    environment:
+      POSTGRES_USER: clinicflow
+      POSTGRES_PASSWORD: clinicflow_secret
+      POSTGRES_DB: clinicflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinicflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clinicflow_api
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://clinicflow:clinicflow_secret@postgres:5432/clinicflow?sslmode=disable
+      SESSION_EXPIRY_HOURS: "24"
+      SESSION_SECURE: "false"
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        API_INTERNAL_URL: http://backend:8080
+    container_name: clinicflow_web
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
