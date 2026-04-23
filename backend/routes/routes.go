@@ -41,6 +41,13 @@ func Register(r *gin.Engine) {
 		protected.POST("/patients", handlers.CreatePatient)
 		protected.PUT("/patients/:id", handlers.UpdatePatient)
 		protected.DELETE("/patients/:id", handlers.DeletePatient)
+		protected.GET("/patients/:id/history", handlers.GetPatientHistory)
+
+		// Medical Records
+		protected.GET("/patients/:id/records", handlers.GetMedicalRecords)
+		protected.POST("/patients/:id/records", handlers.CreateMedicalRecord)
+		protected.PUT("/patients/:id/records/:recordId", handlers.UpdateMedicalRecord)
+		protected.DELETE("/patients/:id/records/:recordId", handlers.DeleteMedicalRecord)
 
 		// Users (admin only)
 		protected.GET("/users", middleware.RequireRole("admin", "staff"), handlers.GetUsers)

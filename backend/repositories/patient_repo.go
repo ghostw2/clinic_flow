@@ -31,6 +31,17 @@ func GetPatientByID(id string, clinicID uuid.UUID) (models.Patient, error) {
 	return patient, err
 }
 
+func GetPatientHistory(id string, clinicID uuid.UUID) (models.Patient, error) {
+	var patient models.Patient
+	err := database.DB.
+		Preload("MedicalRecords", "deleted_at IS NULL").
+		Preload("MedicalRecords.Doctor").
+		Preload("MedicalRecords.Appointment").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+		First(&patient).Error
+	return patient, err
+}
+
 func CreatePatient(patient *models.Patient) error {
 	return database.DB.Create(patient).Error
 }

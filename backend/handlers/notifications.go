@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -20,25 +21,25 @@ func SendNotification(c *gin.Context) {
 
 	var req SendNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
 	apptID, err := uuid.Parse(req.AppointmentID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid appointment_id"})
+		response.BadRequest(c, "invalid appointment_id")
 		return
 	}
 
 	notif, err := services.SendNotification(apptID, clinicID, req.Type)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
+			response.NotFound(c, "appointment not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "notification failed to send", "detail": err.Error()})
+		response.ErrDetail(c, http.StatusInternalServerError, "notification failed to send", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "notification sent", "notification": notif})
+	response.OK(c, notif)
 }

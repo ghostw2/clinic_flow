@@ -7,15 +7,23 @@ import type {
   PaginatedPatients,
   User,
   DashboardStats,
+  MedicalRecord,
+  PatientHistory,
+  VitalSigns,
 } from "@/types";
 
 // All requests go through Next.js proxy (/api/* → backend), keeping cookies same-origin
 const api = axios.create({ baseURL: "/api" });
 
-// Handle 401 globally — redirect to login only from protected pages
+// Unwrap the standard { success, data } envelope and handle 401 globally.
 const PUBLIC_PATHS = ["/login", "/verify-2fa"];
 api.interceptors.response.use(
-  (r) => r,
+  (r) => {
+    if (r.data && typeof r.data === "object" && r.data.success === true && "data" in r.data) {
+      r.data = r.data.data;
+    }
+    return r;
+  },
   (err) => {
     const is401 = err.response?.status === 401;
     const isAuthCheck = err.config?.url === "/auth/me";
@@ -78,32 +86,66 @@ export const appointmentsApi = {
 };
 
 // ── Patients ──────────────────────────────────────────────────────────────────
+type PatientPayload = Partial<{
+  name: string;
+  dob: string;
+  phone: string;
+  email: string;
+  notes: string;
+  gender: string;
+  blood_type: string;
+  allergies: string;
+  chronic_conditions: string;
+  emergency_contact_name: string;
+  emergency_contact_phone: string;
+  address: string;
+  insurance: string;
+  occupation: string;
+}>;
+
 export const patientsApi = {
   list: (params?: { search?: string; page?: number }) =>
     api.get<PaginatedPatients>("/patients", { params }),
 
   get: (id: string) => api.get<Patient>(`/patients/${id}`),
 
-  create: (data: {
-    name: string;
-    dob?: string;
-    phone?: string;
-    email?: string;
-    notes?: string;
-  }) => api.post<Patient>("/patients", data),
+  history: (id: string) => api.get<PatientHistory>(`/patients/${id}/history`),
 
-  update: (
-    id: string,
-    data: Partial<{
-      name: string;
-      dob: string;
-      phone: string;
-      email: string;
-      notes: string;
-    }>
-  ) => api.put<Patient>(`/patients/${id}`, data),
+  create: (data: PatientPayload & { name: string }) =>
+    api.post<Patient>("/patients", data),
+
+  update: (id: string, data: PatientPayload) =>
+    api.put<Patient>(`/patients/${id}`, data),
 
   remove: (id: string) => api.delete(`/patients/${id}`),
+};
+
+// ── Medical Records ───────────────────────────────────────────────────────────
+type RecordPayload = {
+  appointment_id?: string;
+  doctor_id: string;
+  visit_date?: string;
+  chief_complaint?: string;
+  diagnosis?: string;
+  treatment?: string;
+  prescriptions?: string;
+  vital_signs?: VitalSigns;
+  follow_up_date?: string;
+  notes?: string;
+};
+
+export const medicalRecordsApi = {
+  list: (patientId: string) =>
+    api.get<{ records: MedicalRecord[] }>(`/patients/${patientId}/records`),
+
+  create: (patientId: string, data: RecordPayload) =>
+    api.post<MedicalRecord>(`/patients/${patientId}/records`, data),
+
+  update: (patientId: string, recordId: string, data: Partial<Omit<RecordPayload, "doctor_id">>) =>
+    api.put<MedicalRecord>(`/patients/${patientId}/records/${recordId}`, data),
+
+  remove: (patientId: string, recordId: string) =>
+    api.delete(`/patients/${patientId}/records/${recordId}`),
 };
 
 // ── Users ─────────────────────────────────────────────────────────────────────

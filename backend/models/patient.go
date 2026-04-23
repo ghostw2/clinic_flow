@@ -19,7 +19,19 @@ type Patient struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 
-	Appointments []Appointment `json:"appointments,omitempty" gorm:"foreignKey:PatientID"`
+	// Medical profile
+	Gender                 string `json:"gender"`
+	BloodType              string `json:"blood_type"`
+	Allergies              string `json:"allergies"`
+	ChronicConditions      string `json:"chronic_conditions"`
+	EmergencyContactName   string `json:"emergency_contact_name"`
+	EmergencyContactPhone  string `json:"emergency_contact_phone"`
+	Address                string `json:"address"`
+	Insurance              string `json:"insurance"`
+	Occupation             string `json:"occupation"`
+
+	Appointments   []Appointment   `json:"appointments,omitempty" gorm:"foreignKey:PatientID"`
+	MedicalRecords []MedicalRecord `json:"medical_records,omitempty" gorm:"foreignKey:PatientID"`
 }
 
 func (p *Patient) BeforeCreate(tx *gorm.DB) error {

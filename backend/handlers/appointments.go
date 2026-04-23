@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/clinicflow/backend/models"
+	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/repositories"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
@@ -43,11 +43,11 @@ func GetAppointments(c *gin.Context) {
 
 	appointments, err := services.ListAppointments(clinicID, f)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch appointments"})
+		response.InternalError(c, "failed to fetch appointments")
 		return
 	}
 
-	c.JSON(http.StatusOK, appointments)
+	response.OK(c, appointments)
 }
 
 // POST /api/appointments
@@ -56,7 +56,7 @@ func CreateAppointment(c *gin.Context) {
 
 	var req CreateAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
@@ -69,14 +69,14 @@ func CreateAppointment(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": "doctor already has an appointment in this time slot"})
+			response.Conflict(c, "doctor already has an appointment in this time slot")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, appt)
+	response.Created(c, appt)
 }
 
 // PUT /api/appointments/:id
@@ -85,7 +85,7 @@ func UpdateAppointment(c *gin.Context) {
 
 	var req UpdateAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
@@ -98,14 +98,14 @@ func UpdateAppointment(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
+			response.NotFound(c, "appointment not found")
 			return
 		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, appt)
+	response.OK(c, appt)
 }
 
 // DELETE /api/appointments/:id
@@ -114,12 +114,12 @@ func DeleteAppointment(c *gin.Context) {
 
 	if err := services.DeleteAppointment(c.Param("id"), clinicID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "appointment not found"})
+			response.NotFound(c, "appointment not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete appointment"})
+		response.InternalError(c, "failed to delete appointment")
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "appointment deleted"})
+	response.Message(c, "appointment deleted")
 }

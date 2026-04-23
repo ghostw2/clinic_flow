@@ -1,8 +1,7 @@
 package middleware
 
 import (
-	"net/http"
-
+	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
 )
@@ -13,13 +12,13 @@ func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID, err := c.Cookie(SessionCookie)
 		if err != nil || sessionID == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+			response.Abort(c, 401, "not authenticated")
 			return
 		}
 
 		session, err := services.GetSession(sessionID)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "session expired or invalid"})
+			response.Abort(c, 401, "session expired or invalid")
 			return
 		}
 
@@ -40,6 +39,6 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 				return
 			}
 		}
-		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
+		response.Abort(c, 403, "insufficient permissions")
 	}
 }

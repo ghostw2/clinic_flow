@@ -13,6 +13,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql
+      - ./db/002_2fa.sql:/docker-entrypoint-initdb.d/002_2fa.sql
+      - ./db/003_patient_history.sql:/docker-entrypoint-initdb.d/003_patient_history.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U clinicflow"]
       interval: 5s

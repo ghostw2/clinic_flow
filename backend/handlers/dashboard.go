@@ -1,8 +1,7 @@
 package handlers
 
 import (
-	"net/http"
-
+	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,9 +15,9 @@ func GetDashboardStats(c *gin.Context) {
 
 	stats, err := services.GetDashboardStats(clinicID, role.(string), userID.(uuid.UUID))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch stats"})
+		response.InternalError(c, "failed to fetch stats")
 		return
 	}
 
-	c.JSON(http.StatusOK, stats)
+	response.OK(c, stats)
 }
