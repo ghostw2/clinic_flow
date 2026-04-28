@@ -4,6 +4,9 @@ export interface Clinic {
   address: string;
   phone: string;
   email: string;
+  is_demo?: boolean;
+  subscription_status?: string;
+  plan_name?: string;
   created_at: string;
 }
 

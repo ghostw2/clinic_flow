@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/verify-2fa"];
+const PUBLIC_PATHS = ["/login", "/register", "/verify-2fa"];
 
 export function middleware(request: NextRequest) {
   const session = request.cookies.get("clinicflow_session")?.value;

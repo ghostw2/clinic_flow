@@ -7,4 +7,5 @@ var (
 	ErrConflict    = errors.New("scheduling conflict")
 	ErrInvalidID   = errors.New("invalid id")
 	ErrInvalidCode = errors.New("invalid verification code")
+	ErrForbidden   = errors.New("forbidden")
 )

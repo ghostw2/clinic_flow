@@ -15,12 +15,16 @@ import (
 // Setup2FA generates a new TOTP secret and QR code for the user.
 // The secret is stored but 2FA is not yet enabled until Enable2FA confirms it.
 func Setup2FA(userID uuid.UUID) (secret, qrDataURL string, err error) {
-	user, err := repositories.GetUserByID(userID)
+	user, err := repositories.GetUserWithClinic(userID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return "", "", ErrNotFound
 		}
 		return "", "", err
+	}
+
+	if user.Clinic.IsDemo {
+		return "", "", ErrForbidden
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{

@@ -12,6 +12,7 @@ func Register(r *gin.Engine) {
 	// Public routes
 	auth := api.Group("/auth")
 	{
+		auth.POST("/register", handlers.Register)
 		auth.POST("/login", handlers.Login)
 		auth.POST("/logout", handlers.Logout)
 		auth.POST("/2fa/verify", handlers.Verify2FA)
@@ -55,5 +56,13 @@ func Register(r *gin.Engine) {
 
 		// Notifications
 		protected.POST("/notifications/send", middleware.RequireRole("admin", "staff"), handlers.SendNotification)
+
+		// Billing
+		protected.POST("/billing/checkout", handlers.CreateCheckout)
+		protected.POST("/billing/portal", middleware.RequireSubscription(), handlers.CreatePortal)
 	}
+
+	// Billing — public routes
+	api.GET("/billing/plans", handlers.GetPlans)
+	api.POST("/billing/webhook", handlers.BillingWebhook)
 }

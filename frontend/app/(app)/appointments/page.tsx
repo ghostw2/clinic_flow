@@ -2,12 +2,20 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { appointmentsApi } from "@/lib/api";
+import { appointmentsApi, usersApi } from "@/lib/api";
 import { CalendarView } from "@/components/Calendar";
 import { AppointmentForm } from "@/components/AppointmentForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -17,18 +25,42 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime, statusColor } from "@/lib/utils";
-import { Plus, Calendar, List } from "lucide-react";
-import type { Appointment } from "@/types";
-
-const fetcher = () => appointmentsApi.list().then((r) => r.data);
+import { Plus, Calendar, List, X } from "lucide-react";
+import type { Appointment, User } from "@/types";
 
 export default function AppointmentsPage() {
   const { data: appointments = [], mutate, isLoading } = useSWR<Appointment[]>(
     "appointments",
-    fetcher
+    () => appointmentsApi.list().then((r) => r.data)
   );
+
+  const { data: users = [] } = useSWR<User[]>("users", () =>
+    usersApi.list().then((r) => r.data)
+  );
+
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
+
+  // List-view filters (client-side)
+  const [dateFilter, setDateFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState("");
+
+  const doctors = users.filter((u) => u.role === "doctor");
+  const hasFilters = dateFilter || statusFilter || doctorFilter;
+
+  const clearFilters = () => {
+    setDateFilter("");
+    setStatusFilter("");
+    setDoctorFilter("");
+  };
+
+  const filtered = appointments.filter((appt) => {
+    if (statusFilter && appt.status !== statusFilter) return false;
+    if (doctorFilter && appt.doctor_id !== doctorFilter) return false;
+    if (dateFilter && !appt.datetime.startsWith(dateFilter)) return false;
+    return true;
+  });
 
   const handleSaved = () => {
     mutate();
@@ -75,14 +107,57 @@ export default function AppointmentsPage() {
           <CalendarView
             appointments={appointments}
             onEventClick={(appt) => handleEdit(appt)}
-            onDateClick={(date) => {
+            onDateClick={() => {
               setEditing(null);
               setFormOpen(true);
             }}
           />
         </TabsContent>
 
-        <TabsContent value="list" className="mt-4">
+        <TabsContent value="list" className="mt-4 space-y-3">
+          {/* Filter bar */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="date"
+              className="w-40"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+            />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={doctorFilter} onValueChange={setDoctorFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All doctors" />
+              </SelectTrigger>
+              <SelectContent>
+                {doctors.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    Dr. {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-1" /> Clear
+              </Button>
+            )}
+            {hasFilters && (
+              <span className="text-sm text-muted-foreground">
+                {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+
           {isLoading ? (
             <div className="animate-pulse space-y-2">
               {[...Array(5)].map((_, i) => (
@@ -103,14 +178,14 @@ export default function AppointmentsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {appointments.length === 0 ? (
+                  {filtered.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         No appointments found
                       </TableCell>
                     </TableRow>
                   ) : (
-                    appointments.map((appt) => (
+                    filtered.map((appt) => (
                       <TableRow key={appt.id}>
                         <TableCell className="font-medium">
                           {appt.patient?.name ?? "—"}

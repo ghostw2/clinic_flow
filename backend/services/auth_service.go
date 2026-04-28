@@ -78,6 +78,48 @@ func RefreshSession(sessionID string) error {
 	return repositories.ExtendSession(sessionID, time.Now().Add(expiry))
 }
 
+type RegisterInput struct {
+	ClinicName string
+	AdminName  string
+	Email      string
+	Password   string
+}
+
+func Register(input RegisterInput) (LoginResult, error) {
+	// Reject duplicate email
+	if _, err := repositories.GetUserByEmail(input.Email); err == nil {
+		return LoginResult{}, ErrConflict
+	}
+
+	clinic := models.Clinic{Name: input.ClinicName}
+	if err := repositories.CreateClinic(&clinic); err != nil {
+		return LoginResult{}, err
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return LoginResult{}, err
+	}
+
+	user := models.User{
+		ClinicID:     clinic.ID,
+		Role:         models.RoleAdmin,
+		Name:         input.AdminName,
+		Email:        input.Email,
+		PasswordHash: string(hash),
+	}
+	if err := repositories.CreateUser(&user); err != nil {
+		return LoginResult{}, err
+	}
+
+	user.Clinic = clinic
+	session, err := createFullSession(user)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	return LoginResult{User: user, Session: &session}, nil
+}
+
 func createFullSession(user models.User) (models.Session, error) {
 	expiry := time.Duration(config.App.SessionExpiryHours) * time.Hour
 	session := models.Session{

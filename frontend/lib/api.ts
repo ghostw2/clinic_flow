@@ -46,6 +46,9 @@ export const authApi = {
   refresh: () => api.post("/auth/refresh"),
   me: () => api.get<User>("/auth/me"),
 
+  register: (data: { clinic_name: string; admin_name: string; email: string; password: string }) =>
+    api.post<{ user: User }>("/auth/register", data),
+
   setup2FA: () => api.post<TwoFASetupResponse>("/auth/2fa/setup"),
   enable2FA: (code: string) => api.post("/auth/2fa/enable", { code }),
   verify2FA: (pre_auth_token: string, code: string) =>
@@ -164,6 +167,14 @@ export const usersApi = {
 export const notificationsApi = {
   send: (appointment_id: string, type: "email" | "sms") =>
     api.post("/notifications/send", { appointment_id, type }),
+};
+
+// ── Billing ───────────────────────────────────────────────────────────────────
+export const billingApi = {
+  getPlans: () => api.get<{ key: string; name: string; amount: string; description: string }[]>("/billing/plans"),
+  createCheckout: (plan: "starter" | "growth" | "clinic") =>
+    api.post<{ url: string }>("/billing/checkout", { plan }),
+  createPortal: () => api.post<{ url: string }>("/billing/portal"),
 };
 
 export default api;

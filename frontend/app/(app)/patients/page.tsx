@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import useSWR from "swr";
 import Link from "next/link";
 import { patientsApi } from "@/lib/api";
@@ -21,6 +22,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Search } from "lucide-react";
+const PAGE_SIZE = 20;
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -51,13 +53,21 @@ const GENDERS = ["Male", "Female", "Other", "Prefer not to say"];
 
 export default function PatientsPage() {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const { toast } = useToast();
 
   const { data, mutate, isLoading } = useSWR<PaginatedPatients>(
-    ["patients", search],
-    () => patientsApi.list({ search }).then((r) => r.data)
+    ["patients", search, page],
+    () => patientsApi.list({ search, page }).then((r) => r.data)
   );
+
+  const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
 
   const {
     register,
@@ -100,7 +110,7 @@ export default function PatientsPage() {
           placeholder="Search by name, email, phone…"
           className="pl-9"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={handleSearchChange}
         />
       </div>
 
@@ -123,6 +133,31 @@ export default function PatientsPage() {
               No patients found
             </div>
           )}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 pt-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1 || isLoading}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || isLoading}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       )}
 

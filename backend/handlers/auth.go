@@ -62,6 +62,39 @@ func Login(c *gin.Context) {
 	response.OK(c, gin.H{"user": result.User})
 }
 
+// POST /api/auth/register
+func Register(c *gin.Context) {
+	var req struct {
+		ClinicName string `json:"clinic_name" binding:"required,min=2"`
+		AdminName  string `json:"admin_name" binding:"required,min=2"`
+		Email      string `json:"email" binding:"required,email"`
+		Password   string `json:"password" binding:"required,min=8"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	result, err := services.Register(services.RegisterInput{
+		ClinicName: req.ClinicName,
+		AdminName:  req.AdminName,
+		Email:      req.Email,
+		Password:   req.Password,
+	})
+	if err != nil {
+		if errors.Is(err, services.ErrConflict) {
+			response.Conflict(c, "email already registered")
+			return
+		}
+		response.InternalError(c, "registration failed")
+		return
+	}
+
+	maxAge := config.App.SessionExpiryHours * 3600
+	setSessionCookie(c, result.Session.ID, maxAge)
+	response.OK(c, gin.H{"user": result.User})
+}
+
 // POST /api/auth/logout
 func Logout(c *gin.Context) {
 	if sessionID, err := c.Cookie(middleware.SessionCookie); err == nil {

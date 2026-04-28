@@ -18,6 +18,14 @@ type Config struct {
 	TwilioSID          string
 	TwilioToken        string
 	TwilioPhone        string
+	StripeSecretKey     string
+	StripeWebhookSecret string
+	StripePriceStarter  string
+	StripePriceGrowth   string
+	StripePriceClinic   string
+	StripeAmountStarter string
+	StripeAmountGrowth  string
+	StripeAmountClinic  string
 }
 
 var App Config
@@ -31,15 +39,23 @@ func Load() {
 	sessionSecure, _ := strconv.ParseBool(getEnv("SESSION_SECURE", "false"))
 
 	App = Config{
-		Port:               getEnv("PORT", "8080"),
-		DatabaseURL:        getEnv("DATABASE_URL", "postgres://clinicflow:clinicflow_secret@localhost:5432/clinicflow?sslmode=disable"),
-		SessionExpiryHours: expiryHours,
-		SessionSecure:      sessionSecure,
-		ResendAPIKey:       getEnv("RESEND_API_KEY", ""),
-		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
-		TwilioSID:          getEnv("TWILIO_ACCOUNT_SID", ""),
-		TwilioToken:        getEnv("TWILIO_AUTH_TOKEN", ""),
-		TwilioPhone:        getEnv("TWILIO_PHONE_NUMBER", ""),
+		Port:                getEnv("PORT", "8080"),
+		DatabaseURL:         getEnv("DATABASE_URL", "postgres://clinicflow:clinicflow_secret@localhost:5432/clinicflow?sslmode=disable"),
+		SessionExpiryHours:  expiryHours,
+		SessionSecure:       sessionSecure,
+		ResendAPIKey:        getEnv("RESEND_API_KEY", ""),
+		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
+		TwilioSID:           getEnv("TWILIO_ACCOUNT_SID", ""),
+		TwilioToken:         getEnv("TWILIO_AUTH_TOKEN", ""),
+		TwilioPhone:         getEnv("TWILIO_PHONE_NUMBER", ""),
+		StripeSecretKey:     getEnv("STRIPE_SECRET_KEY", ""),
+		StripeWebhookSecret: getEnv("STRIPE_WEBHOOK_SECRET", ""),
+		StripePriceStarter:  getEnv("STRIPE_PRICE_STARTER", ""),
+		StripePriceGrowth:   getEnv("STRIPE_PRICE_GROWTH", ""),
+		StripePriceClinic:   getEnv("STRIPE_PRICE_CLINIC", ""),
+		StripeAmountStarter: getEnv("STRIPE_AMOUNT_STARTER", "9.99"),
+		StripeAmountGrowth:  getEnv("STRIPE_AMOUNT_GROWTH", "19.99"),
+		StripeAmountClinic:  getEnv("STRIPE_AMOUNT_CLINIC", "29.99"),
 	}
 }
 

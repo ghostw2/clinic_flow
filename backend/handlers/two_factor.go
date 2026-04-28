@@ -20,6 +20,10 @@ func Setup2FA(c *gin.Context) {
 
 	secret, qrDataURL, err := services.Setup2FA(userID)
 	if err != nil {
+		if errors.Is(err, services.ErrForbidden) {
+			response.Forbidden(c, "2FA is not available for demo accounts")
+			return
+		}
 		response.InternalError(c, "failed to setup 2FA")
 		return
 	}
