@@ -38,5 +38,5 @@ func autoMigrate() {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}
 	log.Println("Database migration complete")
-	DB.Exec("UPDATE clinics SET is_demo = true WHERE email = 'admin@democlinic.com' AND is_demo = false")
+	DB.Exec("UPDATE clinics SET is_demo = true WHERE email = 'contact@democlinic.com' AND is_demo = false")
 }

@@ -8,12 +8,14 @@ import (
 	"github.com/clinicflow/backend/database"
 	"github.com/clinicflow/backend/middleware"
 	"github.com/clinicflow/backend/routes"
+	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	config.Load()
 	database.Connect()
+	services.ResolvePriceIDs()
 
 	r := gin.Default()
 	r.Use(middleware.CORS())

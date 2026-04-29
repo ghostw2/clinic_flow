@@ -57,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     authApi.logout().catch(() => {});
     setUser(null);
-    router.push("/login");
-  }, [router]);
+    window.location.href = "/login";
+  }, []);
 
   const refreshUser = useCallback(async () => {
     const { data } = await authApi.me();

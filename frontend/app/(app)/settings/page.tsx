@@ -284,8 +284,8 @@ export default function SettingsPage() {
                 <Button
                   className="w-full mt-5"
                   variant={isCurrent ? "secondary" : style.popular ? "default" : "outline"}
-                  disabled={isCurrent || billingLoading === plan.key}
-                  onClick={() => !isCurrent && handleGetStarted(planKey)}
+                  disabled={isCurrent || !!isDemo || billingLoading === plan.key}
+                  onClick={() => !isCurrent && !isDemo && handleGetStarted(planKey)}
                 >
                   {billingLoading === plan.key ? (
                     <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Redirecting…</>
@@ -299,6 +299,11 @@ export default function SettingsPage() {
             );
           })}
         </div>
+        {isDemo && (
+          <p className="text-xs text-muted-foreground mt-3">
+            Checkout is disabled on demo accounts.
+          </p>
+        )}
       </div>
 
       {/* Two-Factor Authentication */}

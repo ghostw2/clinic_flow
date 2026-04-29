@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	stripe "github.com/stripe/stripe-go/v76"
 	checkoutsession "github.com/stripe/stripe-go/v76/checkout/session"
 	stripecustomer "github.com/stripe/stripe-go/v76/customer"
 	portalsession "github.com/stripe/stripe-go/v76/billingportal/session"
+	stripeproduct "github.com/stripe/stripe-go/v76/product"
 	"github.com/stripe/stripe-go/v76/webhook"
 
 	"github.com/clinicflow/backend/config"
@@ -17,6 +19,38 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
+
+// ResolvePriceIDs converts any prod_* IDs in config to their default price_* IDs.
+// Called once at startup so users can put either product or price IDs in env.
+func ResolvePriceIDs() {
+	if config.App.StripeSecretKey == "" {
+		return
+	}
+	stripe.Key = config.App.StripeSecretKey
+
+	resolve := func(field *string, label string) {
+		if !strings.HasPrefix(*field, "prod_") {
+			return
+		}
+		p, err := stripeproduct.Get(*field, &stripe.ProductParams{
+			Params: stripe.Params{Expand: []*string{stripe.String("default_price")}},
+		})
+		if err != nil {
+			log.Printf("[billing] WARNING: could not resolve product %s (%s): %v", *field, label, err)
+			return
+		}
+		if p.DefaultPrice == nil {
+			log.Printf("[billing] WARNING: product %s (%s) has no default price — set a default price in Stripe Dashboard", *field, label)
+			return
+		}
+		log.Printf("[billing] resolved %s: %s → %s", label, *field, p.DefaultPrice.ID)
+		*field = p.DefaultPrice.ID
+	}
+
+	resolve(&config.App.StripePriceStarter, "STRIPE_PRICE_STARTER")
+	resolve(&config.App.StripePriceGrowth, "STRIPE_PRICE_GROWTH")
+	resolve(&config.App.StripePriceClinic, "STRIPE_PRICE_CLINIC")
+}
 
 func planPriceID(planKey string) (string, error) {
 	var id string
@@ -31,15 +65,17 @@ func planPriceID(planKey string) (string, error) {
 		return "", fmt.Errorf("unknown plan: %q", planKey)
 	}
 	if id == "" {
-		return "", fmt.Errorf("price ID for plan %q is not configured (STRIPE_PRICE_%s is empty)", planKey, strings.ToUpper(planKey))
+		return "", fmt.Errorf("price ID for plan %q is not configured", planKey)
 	}
 	if !strings.HasPrefix(id, "price_") {
-		return "", fmt.Errorf("price ID for plan %q looks like a product ID (%q) — use the price ID starting with 'price_' found under the product's pricing section in the Stripe dashboard", planKey, id)
+		return "", fmt.Errorf("price ID for plan %q is still a product ID (%q) — ResolvePriceIDs may have failed at startup", planKey, id)
 	}
 	return id, nil
 }
 
-func CreateCheckoutSession(clinicID uuid.UUID, planKey string) (string, error) {
+// CreateCheckoutSession creates a Stripe Checkout session.
+// successURL must be a full URL (e.g. https://app.com/dashboard?payment=success).
+func CreateCheckoutSession(clinicID uuid.UUID, planKey, successURL string) (string, error) {
 	priceID, err := planPriceID(planKey)
 	if err != nil {
 		return "", err
@@ -77,7 +113,7 @@ func CreateCheckoutSession(clinicID uuid.UUID, planKey string) (string, error) {
 				Quantity: stripe.Int64(1),
 			},
 		},
-		SuccessURL: stripe.String(config.App.FrontendURL + "/settings?payment=success"),
+		SuccessURL: stripe.String(successURL),
 		CancelURL:  stripe.String(config.App.FrontendURL + "/settings"),
 		Metadata: map[string]string{
 			"clinic_id": clinicID.String(),
@@ -138,10 +174,9 @@ func HandleStripeWebhook(payload []byte, sigHeader string) error {
 		}
 		clinicID, err := uuid.Parse(cs.Metadata["clinic_id"])
 		if err != nil {
-			return nil // unknown clinic, skip
+			return nil
 		}
-		plan := cs.Metadata["plan"]
-		repositories.UpdateClinicBilling(clinicID, cs.Customer, cs.Subscription, "active", plan)
+		repositories.UpdateClinicBilling(clinicID, cs.Customer, cs.Subscription, "active", cs.Metadata["plan"])
 
 	case "customer.subscription.updated":
 		var sub struct {
@@ -163,7 +198,7 @@ func HandleStripeWebhook(payload []byte, sigHeader string) error {
 		if err != nil {
 			return nil
 		}
-		plan := ""
+		plan := clinic.PlanName
 		if len(sub.Items.Data) > 0 {
 			for _, p := range []struct{ key, priceID string }{
 				{"starter", config.App.StripePriceStarter},
@@ -175,9 +210,6 @@ func HandleStripeWebhook(payload []byte, sigHeader string) error {
 					break
 				}
 			}
-		}
-		if plan == "" {
-			plan = clinic.PlanName
 		}
 		repositories.UpdateClinicBilling(clinic.ID, sub.Customer, sub.ID, sub.Status, plan)
 
@@ -194,6 +226,31 @@ func HandleStripeWebhook(payload []byte, sigHeader string) error {
 			return nil
 		}
 		repositories.UpdateClinicBilling(clinic.ID, sub.Customer, sub.ID, "cancelled", "free")
+
+	case "invoice.payment_failed":
+		var inv struct {
+			Customer string `json:"customer"`
+		}
+		if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
+			return err
+		}
+		if clinic, err := repositories.GetClinicByStripeCustomerID(inv.Customer); err == nil {
+			log.Printf("[billing] payment failed for clinic %s", clinic.ID)
+			repositories.UpdateClinicBilling(clinic.ID, clinic.StripeCustomerID, clinic.SubscriptionID, "past_due", clinic.PlanName)
+		}
+
+	case "invoice.paid":
+		var inv struct {
+			Customer string `json:"customer"`
+		}
+		if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
+			return err
+		}
+		if clinic, err := repositories.GetClinicByStripeCustomerID(inv.Customer); err == nil {
+			if clinic.SubscriptionStatus == "past_due" {
+				repositories.UpdateClinicBilling(clinic.ID, clinic.StripeCustomerID, clinic.SubscriptionID, "active", clinic.PlanName)
+			}
+		}
 	}
 
 	return nil

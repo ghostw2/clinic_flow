@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect } from "react";
 import useSWR from "swr";
 import { dashboardApi } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/components/ui/use-toast";
 import { StatsCard } from "@/components/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +15,18 @@ import type { DashboardStats } from "@/types";
 const fetcher = () => dashboardApi.stats().then((r) => r.data);
 
 export default function DashboardPage() {
+  const { refreshUser } = useAuth();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.search.includes("payment=success")) {
+      toast({ title: "Welcome!", description: "Your subscription is now active." });
+      window.history.replaceState({}, "", "/dashboard");
+      refreshUser();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { data, isLoading, error } = useSWR<DashboardStats>("dashboard/stats", fetcher, {
     refreshInterval: 30_000,
   });

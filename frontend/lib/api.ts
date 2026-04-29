@@ -172,8 +172,8 @@ export const notificationsApi = {
 // ── Billing ───────────────────────────────────────────────────────────────────
 export const billingApi = {
   getPlans: () => api.get<{ key: string; name: string; amount: string; description: string }[]>("/billing/plans"),
-  createCheckout: (plan: "starter" | "growth" | "clinic") =>
-    api.post<{ url: string }>("/billing/checkout", { plan }),
+  createCheckout: (plan: "starter" | "growth" | "clinic", successUrl?: string) =>
+    api.post<{ url: string }>("/billing/checkout", { plan, success_url: successUrl }),
   createPortal: () => api.post<{ url: string }>("/billing/portal"),
 };
 

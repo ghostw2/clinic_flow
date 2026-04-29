@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/clinicflow/backend/config"
 	"github.com/clinicflow/backend/pkg/response"
@@ -34,14 +35,20 @@ func CreateCheckout(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
 
 	var req struct {
-		Plan string `json:"plan" binding:"required"`
+		Plan       string `json:"plan" binding:"required"`
+		SuccessURL string `json:"success_url"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	url, err := services.CreateCheckoutSession(clinicID, req.Plan)
+	successURL := config.App.FrontendURL + "/settings?payment=success"
+	if req.SuccessURL != "" && strings.HasPrefix(req.SuccessURL, "/") {
+		successURL = config.App.FrontendURL + req.SuccessURL
+	}
+
+	url, err := services.CreateCheckoutSession(clinicID, req.Plan, successURL)
 	if err != nil {
 		log.Printf("[billing] checkout error for clinic %s plan %q: %v", clinicID, req.Plan, err)
 		response.InternalError(c, err.Error())

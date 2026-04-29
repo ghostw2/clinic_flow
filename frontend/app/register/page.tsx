@@ -1,18 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { authApi } from "@/lib/api";
+import { authApi, billingApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Stethoscope } from "lucide-react";
+import { Stethoscope, Check } from "lucide-react";
+
+type PlanInfo = { key: string; name: string; amount: string; description: string };
+
+const PLAN_STYLE: Record<string, { color: string; ring: string }> = {
+  starter: { color: "border-slate-200 bg-slate-50", ring: "ring-2 ring-slate-500" },
+  growth: { color: "border-blue-200 bg-blue-50", ring: "ring-2 ring-blue-500" },
+  clinic: { color: "border-purple-200 bg-purple-50", ring: "ring-2 ring-purple-500" },
+};
 
 const schema = z
   .object({
@@ -32,6 +40,12 @@ type FormData = z.infer<typeof schema>;
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PlanInfo[]>([]);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    billingApi.getPlans().then((r) => setPlans(r.data)).catch(() => {});
+  }, []);
 
   const {
     register,
@@ -48,7 +62,16 @@ export default function RegisterPage() {
         email: data.email,
         password: data.password,
       });
-      router.push("/dashboard");
+
+      if (selectedPlan) {
+        const { data: checkout } = await billingApi.createCheckout(
+          selectedPlan as "starter" | "growth" | "clinic",
+          "/dashboard?payment=success"
+        );
+        window.location.href = checkout.url;
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
@@ -59,7 +82,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="bg-primary text-primary-foreground rounded-xl p-3">
@@ -76,8 +99,46 @@ export default function RegisterPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Plan selection */}
+            {plans.length > 0 && (
+              <div className="mb-6">
+                <p className="text-sm font-medium text-slate-700 mb-3">Choose a plan (optional)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {plans.map((plan) => {
+                    const style = PLAN_STYLE[plan.key] ?? PLAN_STYLE.starter;
+                    const selected = selectedPlan === plan.key;
+                    return (
+                      <button
+                        key={plan.key}
+                        type="button"
+                        onClick={() => setSelectedPlan(selected ? null : plan.key)}
+                        className={`relative rounded-lg border p-3 text-left transition-all ${style.color} ${selected ? style.ring : "hover:border-slate-300"}`}
+                      >
+                        {selected && (
+                          <span className="absolute top-1.5 right-1.5 bg-primary text-primary-foreground rounded-full p-0.5">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                        <p className="font-semibold text-sm text-slate-900">{plan.name}</p>
+                        <p className="text-xs text-slate-500">${plan.amount}/mo</p>
+                        <p className="text-xs text-slate-600 mt-1 leading-snug">{plan.description}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlan(null)}
+                  className="mt-2 text-xs text-muted-foreground hover:text-slate-700 underline-offset-2 hover:underline"
+                >
+                  Start for free →
+                </button>
+              </div>
+            )}
+
+            <Separator className="mb-4" />
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Clinic section */}
               <div className="space-y-2">
                 <Label htmlFor="clinic_name">Clinic Name</Label>
                 <Input
@@ -90,9 +151,6 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              <Separator />
-
-              {/* Admin section */}
               <div className="space-y-2">
                 <Label htmlFor="admin_name">Your Full Name</Label>
                 <Input
@@ -151,7 +209,11 @@ export default function RegisterPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Creating account…" : "Create Account"}
+                {isSubmitting
+                  ? "Creating account…"
+                  : selectedPlan
+                  ? `Continue to payment →`
+                  : "Create Account"}
               </Button>
             </form>
 
