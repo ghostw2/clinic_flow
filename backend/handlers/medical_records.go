@@ -128,6 +128,12 @@ func CreateMedicalRecord(c *gin.Context) {
 func UpdateMedicalRecord(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
 
+	recordID, err := uuid.Parse(c.Param("recordId"))
+	if err != nil {
+		response.BadRequest(c, "invalid record id")
+		return
+	}
+
 	var req UpdateMedicalRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
@@ -154,7 +160,7 @@ func UpdateMedicalRecord(c *gin.Context) {
 		}
 	}
 
-	record, err := services.UpdateMedicalRecord(c.Param("recordId"), clinicID, input)
+	record, err := services.UpdateMedicalRecord(recordID.String(), clinicID, input)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			response.NotFound(c, "record not found")
@@ -171,7 +177,13 @@ func UpdateMedicalRecord(c *gin.Context) {
 func DeleteMedicalRecord(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
 
-	if err := services.DeleteMedicalRecord(c.Param("recordId"), clinicID); err != nil {
+	recordID, err := uuid.Parse(c.Param("recordId"))
+	if err != nil {
+		response.BadRequest(c, "invalid record id")
+		return
+	}
+
+	if err := services.DeleteMedicalRecord(recordID.String(), clinicID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			response.NotFound(c, "record not found")
 			return

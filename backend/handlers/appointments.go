@@ -11,6 +11,12 @@ import (
 	"github.com/google/uuid"
 )
 
+type GetAppointmentsQuery struct {
+	Date     string `form:"date"`
+	Status   string `form:"status"`
+	DoctorID string `form:"doctor_id"`
+}
+
 type CreateAppointmentRequest struct {
 	PatientID string `json:"patient_id" binding:"required"`
 	DoctorID  string `json:"doctor_id" binding:"required"`
@@ -33,10 +39,23 @@ func GetAppointments(c *gin.Context) {
 	role, _ := c.Get("role")
 	userID, _ := c.Get("user_id")
 
+	var q GetAppointmentsQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if q.DoctorID != "" {
+		if _, err := uuid.Parse(q.DoctorID); err != nil {
+			response.BadRequest(c, "invalid doctor_id")
+			return
+		}
+	}
+
 	f := repositories.AppointmentFilters{
-		Date:       c.Query("date"),
-		Status:     c.Query("status"),
-		DoctorID:   c.Query("doctor_id"),
+		Date:       q.Date,
+		Status:     q.Status,
+		DoctorID:   q.DoctorID,
 		OnlyDoctor: role == string(models.RoleDoctor),
 		UserID:     userID.(uuid.UUID),
 	}
@@ -83,13 +102,19 @@ func CreateAppointment(c *gin.Context) {
 func UpdateAppointment(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
 
+	apptID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid appointment id")
+		return
+	}
+
 	var req UpdateAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	appt, err := services.UpdateAppointment(c.Param("id"), clinicID, services.UpdateAppointmentInput{
+	appt, err := services.UpdateAppointment(apptID.String(), clinicID, services.UpdateAppointmentInput{
 		DoctorID: req.DoctorID,
 		Datetime: req.Datetime,
 		Duration: req.Duration,
@@ -112,7 +137,13 @@ func UpdateAppointment(c *gin.Context) {
 func DeleteAppointment(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
 
-	if err := services.DeleteAppointment(c.Param("id"), clinicID); err != nil {
+	apptID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "invalid appointment id")
+		return
+	}
+
+	if err := services.DeleteAppointment(apptID.String(), clinicID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
 			response.NotFound(c, "appointment not found")
 			return
