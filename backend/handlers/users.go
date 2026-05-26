@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/clinicflow/backend/models"
 	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
@@ -20,11 +21,11 @@ func GetUsers(c *gin.Context) {
 
 	users, err := services.ListUsers(clinicID)
 	if err != nil {
-		response.InternalError(c, "failed to fetch users")
+		response.InternalError(c, "user.fetch_failed")
 		return
 	}
 
-	response.OK(c, users)
+	response.OK(c, models.UsersToResponse(users))
 }
 
 // POST /api/users (admin only)
@@ -33,7 +34,7 @@ func CreateUser(c *gin.Context) {
 
 	var req CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
@@ -44,9 +45,9 @@ func CreateUser(c *gin.Context) {
 		Role:     req.Role,
 	})
 	if err != nil {
-		response.InternalError(c, "email already in use or create failed")
+		response.InternalError(c, "user.create_failed")
 		return
 	}
 
-	response.Created(c, user)
+	response.Created(c, user.ToResponse())
 }

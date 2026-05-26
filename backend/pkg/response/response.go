@@ -12,10 +12,14 @@ type SuccessResponse struct {
 	Message string      `json:"message,omitempty"`
 }
 
+type APIErrorCode struct {
+	Code  string `json:"code"`
+	Field string `json:"field,omitempty"`
+}
+
 type ErrorResponse struct {
-	Success bool   `json:"success"`
-	Error   string `json:"error"`
-	Detail  string `json:"detail,omitempty"`
+	Success bool         `json:"success"`
+	Error   APIErrorCode `json:"error"`
 }
 
 // OK sends a 200 with the data envelope.
@@ -33,28 +37,26 @@ func Message(c *gin.Context, msg string) {
 	c.JSON(http.StatusOK, SuccessResponse{Success: true, Message: msg})
 }
 
-// Err sends an error response with the given HTTP status.
-func Err(c *gin.Context, status int, msg string) {
-	c.JSON(status, ErrorResponse{Success: false, Error: msg})
+// Err sends an error response with the given HTTP status and error code.
+func Err(c *gin.Context, status int, code string) {
+	c.JSON(status, ErrorResponse{Success: false, Error: APIErrorCode{Code: code}})
 }
 
-// ErrDetail sends an error response with an extra detail field.
-func ErrDetail(c *gin.Context, status int, msg, detail string) {
-	c.JSON(status, ErrorResponse{Success: false, Error: msg, Detail: detail})
+// ErrField sends an error response with an error code and the affected field name.
+func ErrField(c *gin.Context, status int, code, field string) {
+	c.JSON(status, ErrorResponse{Success: false, Error: APIErrorCode{Code: code, Field: field}})
 }
 
 // Abort stops the chain and sends an error response.
-func Abort(c *gin.Context, status int, msg string) {
-	c.AbortWithStatusJSON(status, ErrorResponse{Success: false, Error: msg})
+func Abort(c *gin.Context, status int, code string) {
+	c.AbortWithStatusJSON(status, ErrorResponse{Success: false, Error: APIErrorCode{Code: code}})
 }
 
 // ── Shortcuts ──────────────────────────────────────────────────────────────
 
-func BadRequest(c *gin.Context, msg string)   { Err(c, http.StatusBadRequest, msg) }
-func Unauthorized(c *gin.Context, msg string) { Err(c, http.StatusUnauthorized, msg) }
-func Forbidden(c *gin.Context, msg string)    { Err(c, http.StatusForbidden, msg) }
-func NotFound(c *gin.Context, msg string)     { Err(c, http.StatusNotFound, msg) }
-func Conflict(c *gin.Context, msg string)     { Err(c, http.StatusConflict, msg) }
-func InternalError(c *gin.Context, msg string) {
-	Err(c, http.StatusInternalServerError, msg)
-}
+func BadRequest(c *gin.Context, code string)    { Err(c, http.StatusBadRequest, code) }
+func Unauthorized(c *gin.Context, code string)  { Err(c, http.StatusUnauthorized, code) }
+func Forbidden(c *gin.Context, code string)     { Err(c, http.StatusForbidden, code) }
+func NotFound(c *gin.Context, code string)      { Err(c, http.StatusNotFound, code) }
+func Conflict(c *gin.Context, code string)      { Err(c, http.StatusConflict, code) }
+func InternalError(c *gin.Context, code string) { Err(c, http.StatusInternalServerError, code) }

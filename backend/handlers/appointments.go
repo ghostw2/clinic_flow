@@ -41,13 +41,13 @@ func GetAppointments(c *gin.Context) {
 
 	var q GetAppointmentsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
 	if q.DoctorID != "" {
 		if _, err := uuid.Parse(q.DoctorID); err != nil {
-			response.BadRequest(c, "invalid doctor_id")
+			response.BadRequest(c, "validation.invalid_id")
 			return
 		}
 	}
@@ -62,11 +62,11 @@ func GetAppointments(c *gin.Context) {
 
 	appointments, err := services.ListAppointments(clinicID, f)
 	if err != nil {
-		response.InternalError(c, "failed to fetch appointments")
+		response.InternalError(c, "appointment.fetch_failed")
 		return
 	}
 
-	response.OK(c, appointments)
+	response.OK(c, models.AppointmentsToResponse(appointments))
 }
 
 // POST /api/appointments
@@ -75,7 +75,7 @@ func CreateAppointment(c *gin.Context) {
 
 	var req CreateAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
@@ -88,14 +88,14 @@ func CreateAppointment(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrConflict) {
-			response.Conflict(c, "doctor already has an appointment in this time slot")
+			response.Conflict(c, "appointment.time_conflict")
 			return
 		}
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "appointment.create_failed")
 		return
 	}
 
-	response.Created(c, appt)
+	response.Created(c, appt.ToResponse())
 }
 
 // PUT /api/appointments/:id
@@ -104,13 +104,13 @@ func UpdateAppointment(c *gin.Context) {
 
 	apptID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid appointment id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	var req UpdateAppointmentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
@@ -123,14 +123,14 @@ func UpdateAppointment(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "appointment not found")
+			response.NotFound(c, "appointment.not_found")
 			return
 		}
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "appointment.update_failed")
 		return
 	}
 
-	response.OK(c, appt)
+	response.OK(c, appt.ToResponse())
 }
 
 // DELETE /api/appointments/:id
@@ -139,16 +139,16 @@ func DeleteAppointment(c *gin.Context) {
 
 	apptID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid appointment id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	if err := services.DeleteAppointment(apptID.String(), clinicID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "appointment not found")
+			response.NotFound(c, "appointment.not_found")
 			return
 		}
-		response.InternalError(c, "failed to delete appointment")
+		response.InternalError(c, "appointment.delete_failed")
 		return
 	}
 

@@ -3,6 +3,8 @@ import type {
   LoginResponse,
   TwoFASetupResponse,
   Appointment,
+  AppointmentDocument,
+  DocumentType,
   Patient,
   PaginatedPatients,
   User,
@@ -107,7 +109,7 @@ type PatientPayload = Partial<{
 }>;
 
 export const patientsApi = {
-  list: (params?: { search?: string; page?: number }) =>
+  list: (params?: { search?: string; page?: number; created_from?: string; created_to?: string; all?: boolean }) =>
     api.get<PaginatedPatients>("/patients", { params }),
 
   get: (id: string) => api.get<Patient>(`/patients/${id}`),
@@ -161,6 +163,27 @@ export const usersApi = {
     password: string;
     role: string;
   }) => api.post<User>("/users", data),
+};
+
+// ── Appointment Documents ─────────────────────────────────────────────────────
+export const documentsApi = {
+  list: (appointmentId: string) =>
+    api.get<AppointmentDocument[]>(`/appointments/${appointmentId}/documents`),
+
+  upload: (appointmentId: string, file: File, docType: DocumentType) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("doc_type", docType);
+    return api.post<AppointmentDocument>(`/appointments/${appointmentId}/documents`, form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+
+  fileUrl: (appointmentId: string, docId: string, inline = false) =>
+    `/api/appointments/${appointmentId}/documents/${docId}/file${inline ? "?inline=1" : ""}`,
+
+  remove: (appointmentId: string, docId: string) =>
+    api.delete(`/appointments/${appointmentId}/documents/${docId}`),
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────────

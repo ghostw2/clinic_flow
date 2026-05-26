@@ -74,6 +74,10 @@ func CreateAppointment(clinicID uuid.UUID, input CreateAppointmentInput) (models
 	}
 
 	repositories.LoadAppointmentRelations(&appt)
+	go func() {
+		_ = SendBookingConfirmation(appt)
+		_ = SendSMSBookingConfirmation(appt)
+	}()
 	return appt, nil
 }
 
@@ -85,6 +89,8 @@ func UpdateAppointment(id string, clinicID uuid.UUID, input UpdateAppointmentInp
 		}
 		return models.Appointment{}, err
 	}
+
+	originalDatetime := appt.Datetime
 
 	if input.Datetime != "" {
 		dt, err := time.Parse(time.RFC3339, input.Datetime)
@@ -114,6 +120,16 @@ func UpdateAppointment(id string, clinicID uuid.UUID, input UpdateAppointmentInp
 	}
 
 	repositories.LoadAppointmentRelations(&appt)
+	go func() {
+		switch {
+		case input.Status == "cancelled":
+			_ = SendCancellationNotice(appt)
+			_ = SendSMSCancellationNotice(appt)
+		case input.Datetime != "" && appt.Datetime != originalDatetime:
+			_ = SendRescheduledNotice(appt)
+			_ = SendSMSRescheduledNotice(appt)
+		}
+	}()
 	return appt, nil
 }
 

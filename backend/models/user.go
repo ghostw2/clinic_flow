@@ -38,3 +38,39 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type UserResponse struct {
+	ID               uuid.UUID       `json:"id"`
+	Role             UserRole        `json:"role"`
+	Name             string          `json:"name"`
+	Email            string          `json:"email"`
+	TwoFactorEnabled bool            `json:"two_factor_enabled"`
+	CreatedAt        time.Time       `json:"created_at"`
+	UpdatedAt        time.Time       `json:"updated_at"`
+	Clinic           *ClinicResponse `json:"clinic,omitempty"`
+}
+
+func (u User) ToResponse() UserResponse {
+	r := UserResponse{
+		ID:               u.ID,
+		Role:             u.Role,
+		Name:             u.Name,
+		Email:            u.Email,
+		TwoFactorEnabled: u.TwoFactorEnabled,
+		CreatedAt:        u.CreatedAt,
+		UpdatedAt:        u.UpdatedAt,
+	}
+	if u.Clinic.ID != uuid.Nil {
+		c := u.Clinic.ToResponse()
+		r.Clinic = &c
+	}
+	return r
+}
+
+func UsersToResponse(users []User) []UserResponse {
+	result := make([]UserResponse, len(users))
+	for i, u := range users {
+		result[i] = u.ToResponse()
+	}
+	return result
+}

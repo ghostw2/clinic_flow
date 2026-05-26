@@ -6,18 +6,28 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetPatients(clinicID uuid.UUID, search string, page, limit int) ([]models.Patient, int64, error) {
+func GetPatients(clinicID uuid.UUID, search, createdFrom, createdTo string, page, limit int) ([]models.Patient, int64, error) {
 	query := database.DB.Where("clinic_id = ? AND deleted_at IS NULL", clinicID)
 	if search != "" {
 		like := "%" + search + "%"
 		query = query.Where("name ILIKE ? OR email ILIKE ? OR phone ILIKE ?", like, like, like)
+	}
+	if createdFrom != "" {
+		query = query.Where("DATE(created_at) >= ?", createdFrom)
+	}
+	if createdTo != "" {
+		query = query.Where("DATE(created_at) <= ?", createdTo)
 	}
 
 	var total int64
 	query.Model(&models.Patient{}).Count(&total)
 
 	var patients []models.Patient
-	err := query.Offset((page - 1) * limit).Limit(limit).Order("name ASC").Find(&patients).Error
+	q := query.Order("name ASC")
+	if limit > 0 {
+		q = q.Offset((page - 1) * limit).Limit(limit)
+	}
+	err := q.Find(&patients).Error
 	return patients, total, err
 }
 

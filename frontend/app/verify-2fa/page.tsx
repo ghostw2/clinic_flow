@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/i18nContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,7 @@ import { Stethoscope, ShieldCheck } from "lucide-react";
 export default function Verify2FAPage() {
   const router = useRouter();
   const { refreshUser } = useAuth();
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,10 +41,9 @@ export default function Verify2FAPage() {
       await refreshUser();
       router.push("/dashboard");
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data
-          ?.error ?? "Invalid code. Please try again.";
-      setError(message);
+      const apiCode =
+        (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code;
+      setError(apiCode ? t(`errors.${apiCode}`) : t("auth.twoFa.verifyError"));
       setCode("");
     } finally {
       setLoading(false);
@@ -68,10 +69,8 @@ export default function Verify2FAPage() {
                 <ShieldCheck className="h-6 w-6 text-blue-600" />
               </div>
             </div>
-            <CardTitle className="text-2xl">Two-Factor Auth</CardTitle>
-            <CardDescription>
-              Enter the 6-digit code from your authenticator app
-            </CardDescription>
+            <CardTitle className="text-2xl">{t("auth.twoFa.cardTitle")}</CardTitle>
+            <CardDescription>{t("auth.twoFa.subtitle")}</CardDescription>
           </CardHeader>
 
           <CardContent>
@@ -100,7 +99,7 @@ export default function Verify2FAPage() {
                 className="w-full"
                 disabled={loading || code.length !== 6}
               >
-                {loading ? "Verifying…" : "Verify"}
+                {loading ? t("auth.twoFa.submitting") : t("auth.twoFa.submit")}
               </Button>
 
               <Button
@@ -112,7 +111,7 @@ export default function Verify2FAPage() {
                   router.push("/login");
                 }}
               >
-                Back to login
+                {t("auth.twoFa.back")}
               </Button>
             </form>
           </CardContent>

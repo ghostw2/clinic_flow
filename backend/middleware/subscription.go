@@ -15,7 +15,7 @@ func RequireSubscription() gin.HandlerFunc {
 
 		clinic, err := repositories.GetClinicByID(clinicID)
 		if err != nil || clinic.SubscriptionStatus != "active" {
-			response.Abort(c, 402, "active subscription required")
+			response.Abort(c, 402, "billing.subscription_required")
 			return
 		}
 

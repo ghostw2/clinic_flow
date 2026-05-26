@@ -36,6 +36,12 @@ func Register(r *gin.Engine) {
 		protected.PUT("/appointments/:id", handlers.UpdateAppointment)
 		protected.DELETE("/appointments/:id", handlers.DeleteAppointment)
 
+		// Appointment Documents
+		protected.GET("/appointments/:id/documents", handlers.ListDocuments)
+		protected.POST("/appointments/:id/documents", handlers.UploadDocument)
+		protected.GET("/appointments/:id/documents/:docId/file", handlers.DownloadDocument)
+		protected.DELETE("/appointments/:id/documents/:docId", handlers.DeleteDocument)
+
 		// Patients
 		protected.GET("/patients", handlers.GetPatients)
 		protected.GET("/patients/:id", handlers.GetPatient)
@@ -65,4 +71,8 @@ func Register(r *gin.Engine) {
 	// Billing — public routes
 	api.GET("/billing/plans", handlers.GetPlans)
 	api.POST("/billing/webhook", handlers.BillingWebhook)
+
+	// i18n — public routes
+	api.GET("/i18n/languages", handlers.GetLanguages)
+	api.GET("/i18n/:lang", handlers.GetTranslations)
 }

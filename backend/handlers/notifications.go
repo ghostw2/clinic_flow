@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
@@ -21,25 +20,25 @@ func SendNotification(c *gin.Context) {
 
 	var req SendNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
 	apptID, err := uuid.Parse(req.AppointmentID)
 	if err != nil {
-		response.BadRequest(c, "invalid appointment_id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	notif, err := services.SendNotification(apptID, clinicID, req.Type)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "appointment not found")
+			response.NotFound(c, "appointment.not_found")
 			return
 		}
-		response.ErrDetail(c, http.StatusInternalServerError, "notification failed to send", err.Error())
+		response.InternalError(c, "generic.internal_error")
 		return
 	}
 
-	response.OK(c, notif)
+	response.OK(c, notif.ToResponse())
 }

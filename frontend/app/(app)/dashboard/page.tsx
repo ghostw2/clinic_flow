@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import useSWR from "swr";
 import { dashboardApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/i18nContext";
 import { useToast } from "@/components/ui/use-toast";
 import { StatsCard } from "@/components/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ const fetcher = () => dashboardApi.stats().then((r) => r.data);
 export default function DashboardPage() {
   const { refreshUser } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.search.includes("payment=success")) {
@@ -48,7 +50,7 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center gap-2 text-destructive">
         <AlertCircle className="h-5 w-5" />
-        <span>Failed to load dashboard data.</span>
+        <span>{t("dashboard.loadError")}</span>
       </div>
     );
   }
@@ -56,34 +58,32 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Overview of your clinic activity
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">{t("dashboard.title")}</h1>
+        <p className="text-muted-foreground text-sm mt-1">{t("dashboard.subtitle")}</p>
       </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard
-          title="Today's Appointments"
+          title={t("dashboard.todayAppointments")}
           value={data?.today_count ?? 0}
           icon={<Calendar className="h-5 w-5" />}
           color="blue"
         />
         <StatsCard
-          title="Total Patients"
+          title={t("dashboard.totalPatients")}
           value={data?.total_patients ?? 0}
           icon={<Users className="h-5 w-5" />}
           color="green"
         />
         <StatsCard
-          title="This Month"
+          title={t("dashboard.thisMonth")}
           value={data?.monthly_count ?? 0}
           icon={<Calendar className="h-5 w-5" />}
           color="purple"
         />
         <StatsCard
-          title="Pending Confirmation"
+          title={t("dashboard.pendingConfirmation")}
           value={data?.pending_count ?? 0}
           icon={<Clock className="h-5 w-5" />}
           color="amber"
@@ -93,12 +93,14 @@ export default function DashboardPage() {
       {/* Upcoming Appointments */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-semibold">Upcoming Appointments</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            {t("dashboard.upcomingAppointments")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {!data?.upcoming?.length ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              No upcoming appointments
+              {t("dashboard.noUpcoming")}
             </p>
           ) : (
             <div className="space-y-3">
@@ -110,11 +112,11 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium text-sm">{appt.patient?.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Dr. {appt.doctor?.name} · {formatDateTime(appt.datetime)}
+                      {t("common.dr")} {appt.doctor?.name} · {formatDateTime(appt.datetime)}
                     </p>
                   </div>
                   <Badge className={statusColor(appt.status)} variant="outline">
-                    {appt.status}
+                    {t(`appointments.statuses.${appt.status}`)}
                   </Badge>
                 </div>
               ))}

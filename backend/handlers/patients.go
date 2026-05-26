@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 
+	"github.com/clinicflow/backend/models"
 	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
@@ -10,8 +11,11 @@ import (
 )
 
 type GetPatientsQuery struct {
-	Page   int    `form:"page" binding:"omitempty,min=1"`
-	Search string `form:"search"`
+	Page        int    `form:"page" binding:"omitempty,min=1"`
+	Search      string `form:"search"`
+	CreatedFrom string `form:"created_from"`
+	CreatedTo   string `form:"created_to"`
+	All         bool   `form:"all"`
 }
 
 type CreatePatientRequest struct {
@@ -54,20 +58,26 @@ func GetPatients(c *gin.Context) {
 
 	var q GetPatientsQuery
 	if err := c.ShouldBindQuery(&q); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 	if q.Page == 0 {
 		q.Page = 1
 	}
 
-	patients, total, err := services.ListPatients(clinicID, q.Search, q.Page)
+	patients, total, err := services.ListPatients(clinicID, services.ListPatientsInput{
+		Search:      q.Search,
+		CreatedFrom: q.CreatedFrom,
+		CreatedTo:   q.CreatedTo,
+		Page:        q.Page,
+		All:         q.All,
+	})
 	if err != nil {
-		response.InternalError(c, "failed to fetch patients")
+		response.InternalError(c, "patient.fetch_failed")
 		return
 	}
 
-	response.OK(c, gin.H{"patients": patients, "total": total})
+	response.OK(c, gin.H{"patients": models.PatientsToResponse(patients), "total": total})
 }
 
 // GET /api/patients/:id
@@ -76,21 +86,21 @@ func GetPatient(c *gin.Context) {
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid patient id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	patient, err := services.GetPatient(patientID.String(), clinicID)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "patient not found")
+			response.NotFound(c, "patient.not_found")
 			return
 		}
-		response.InternalError(c, "failed to fetch patient")
+		response.InternalError(c, "patient.fetch_failed")
 		return
 	}
 
-	response.OK(c, patient)
+	response.OK(c, patient.ToResponse())
 }
 
 // POST /api/patients
@@ -99,7 +109,7 @@ func CreatePatient(c *gin.Context) {
 
 	var req CreatePatientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
@@ -120,11 +130,11 @@ func CreatePatient(c *gin.Context) {
 		Occupation:            req.Occupation,
 	})
 	if err != nil {
-		response.InternalError(c, "failed to create patient")
+		response.InternalError(c, "patient.create_failed")
 		return
 	}
 
-	response.Created(c, patient)
+	response.Created(c, patient.ToResponse())
 }
 
 // PUT /api/patients/:id
@@ -133,13 +143,13 @@ func UpdatePatient(c *gin.Context) {
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid patient id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	var req UpdatePatientRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
@@ -161,14 +171,14 @@ func UpdatePatient(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "patient not found")
+			response.NotFound(c, "patient.not_found")
 			return
 		}
-		response.InternalError(c, "failed to update patient")
+		response.InternalError(c, "patient.update_failed")
 		return
 	}
 
-	response.OK(c, patient)
+	response.OK(c, patient.ToResponse())
 }
 
 // DELETE /api/patients/:id
@@ -177,16 +187,16 @@ func DeletePatient(c *gin.Context) {
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid patient id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	if err := services.DeletePatient(patientID.String(), clinicID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "patient not found")
+			response.NotFound(c, "patient.not_found")
 			return
 		}
-		response.InternalError(c, "failed to delete patient")
+		response.InternalError(c, "patient.delete_failed")
 		return
 	}
 
@@ -199,19 +209,19 @@ func GetPatientHistory(c *gin.Context) {
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid patient id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	history, err := services.GetPatientHistory(patientID.String(), clinicID)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "patient not found")
+			response.NotFound(c, "patient.not_found")
 			return
 		}
-		response.InternalError(c, "failed to fetch patient history")
+		response.InternalError(c, "patient.history_failed")
 		return
 	}
 
-	response.OK(c, history)
+	response.OK(c, history.ToResponse())
 }

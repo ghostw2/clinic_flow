@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { authApi, billingApi } from "@/lib/api";
+import { useI18n } from "@/contexts/i18nContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +40,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanInfo[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
@@ -73,17 +75,15 @@ export default function RegisterPage() {
         router.push("/dashboard");
       }
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        "Registration failed. Please try again.";
-      setError(message);
+      const code =
+        (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code;
+      setError(code ? t(`errors.${code}`) : t("auth.register.registrationFailed"));
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="bg-primary text-primary-foreground rounded-xl p-3">
             <Stethoscope className="h-7 w-7" />
@@ -93,16 +93,13 @@ export default function RegisterPage() {
 
         <Card className="shadow-xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Create your account</CardTitle>
-            <CardDescription>
-              Set up your clinic and get started in minutes
-            </CardDescription>
+            <CardTitle className="text-2xl">{t("auth.register.title")}</CardTitle>
+            <CardDescription>{t("auth.register.subtitle")}</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Plan selection */}
             {plans.length > 0 && (
               <div className="mb-6">
-                <p className="text-sm font-medium text-slate-700 mb-3">Choose a plan (optional)</p>
+                <p className="text-sm font-medium text-slate-700 mb-3">{t("auth.register.choosePlan")}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {plans.map((plan) => {
                     const style = PLAN_STYLE[plan.key] ?? PLAN_STYLE.starter;
@@ -131,7 +128,7 @@ export default function RegisterPage() {
                   onClick={() => setSelectedPlan(null)}
                   className="mt-2 text-xs text-muted-foreground hover:text-slate-700 underline-offset-2 hover:underline"
                 >
-                  Start for free →
+                  {t("auth.register.startFree")}
                 </button>
               </div>
             )}
@@ -140,10 +137,10 @@ export default function RegisterPage() {
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="clinic_name">Clinic Name</Label>
+                <Label htmlFor="clinic_name">{t("auth.register.clinicName")}</Label>
                 <Input
                   id="clinic_name"
-                  placeholder="Sunshine Medical Clinic"
+                  placeholder={t("auth.register.clinicNamePlaceholder")}
                   {...register("clinic_name")}
                 />
                 {errors.clinic_name && (
@@ -152,10 +149,10 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="admin_name">Your Full Name</Label>
+                <Label htmlFor="admin_name">{t("auth.register.adminName")}</Label>
                 <Input
                   id="admin_name"
-                  placeholder="Dr. Jane Smith"
+                  placeholder={t("auth.register.adminNamePlaceholder")}
                   {...register("admin_name")}
                 />
                 {errors.admin_name && (
@@ -164,11 +161,11 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email">{t("auth.register.email")}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="jane@sunshine.com"
+                  placeholder={t("auth.register.emailPlaceholder")}
                   {...register("email")}
                 />
                 {errors.email && (
@@ -177,11 +174,11 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("auth.register.password")}</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Min. 8 characters"
+                  placeholder={t("auth.register.passwordHint")}
                   {...register("password")}
                 />
                 {errors.password && (
@@ -190,11 +187,11 @@ export default function RegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm_password">Confirm Password</Label>
+                <Label htmlFor="confirm_password">{t("auth.register.confirmPassword")}</Label>
                 <Input
                   id="confirm_password"
                   type="password"
-                  placeholder="Repeat your password"
+                  placeholder={t("auth.register.repeatPasswordPlaceholder")}
                   {...register("confirm_password")}
                 />
                 {errors.confirm_password && (
@@ -210,17 +207,17 @@ export default function RegisterPage() {
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting
-                  ? "Creating account…"
+                  ? t("auth.register.submitting")
                   : selectedPlan
-                  ? `Continue to payment →`
-                  : "Create Account"}
+                  ? t("auth.register.continuePayment")
+                  : t("auth.register.submit")}
               </Button>
             </form>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              {t("auth.register.hasAccount")}{" "}
               <Link href="/login" className="text-primary font-medium hover:underline">
-                Sign in
+                {t("auth.register.signIn")}
               </Link>
             </div>
           </CardContent>

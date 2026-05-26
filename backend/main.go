@@ -16,6 +16,7 @@ func main() {
 	config.Load()
 	database.Connect()
 	services.ResolvePriceIDs()
+	go services.StartReminderScheduler()
 
 	r := gin.Default()
 	r.Use(middleware.CORS())

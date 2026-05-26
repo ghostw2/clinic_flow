@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { useI18n } from "@/contexts/i18nContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -35,10 +37,9 @@ export default function LoginPage() {
     try {
       await login(data.email, data.password);
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        "Login failed. Please try again.";
-      setError(message);
+      const code =
+        (err as { response?: { data?: { error?: { code?: string } } } })?.response?.data?.error?.code;
+      setError(code ? t(`errors.${code}`) : t("auth.login.loginFailed"));
     } finally {
       setLoading(false);
     }
@@ -47,7 +48,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="bg-primary text-primary-foreground rounded-xl p-3">
             <Stethoscope className="h-7 w-7" />
@@ -57,19 +57,17 @@ export default function LoginPage() {
 
         <Card className="shadow-xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to your clinic dashboard
-            </CardDescription>
+            <CardTitle className="text-2xl">{t("auth.login.cardTitle")}</CardTitle>
+            <CardDescription>{t("auth.login.cardDescription")}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t("auth.login.email")}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@democlinic.com"
+                  placeholder={t("auth.login.emailPlaceholder")}
                   {...register("email")}
                 />
                 {errors.email && (
@@ -78,7 +76,7 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("auth.login.password")}</Label>
                 <Input
                   id="password"
                   type="password"
@@ -97,7 +95,7 @@ export default function LoginPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in…" : "Sign in"}
+                {loading ? t("auth.login.submitting") : t("auth.login.submit")}
               </Button>
             </form>
 
@@ -113,18 +111,18 @@ export default function LoginPage() {
                   try {
                     await login("admin@democlinic.com", "admin1234");
                   } catch {
-                    setError("Demo login failed. Please try again.");
+                    setError(t("auth.login.demoFailed"));
                   } finally {
                     setLoading(false);
                   }
                 }}
               >
-                {loading ? "Signing in…" : "Try the demo"}
+                {loading ? t("auth.login.submitting") : t("auth.login.tryDemo")}
               </Button>
               <div className="text-center text-sm text-muted-foreground">
-                Don&apos;t have an account?{" "}
+                {t("auth.login.noAccount")}{" "}
                 <Link href="/register" className="text-primary font-medium hover:underline">
-                  Create one
+                  {t("auth.login.createAccount")}
                 </Link>
               </div>
             </div>

@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useI18n } from "@/contexts/i18nContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,6 @@ const schema = z.object({
   prescriptions: z.string().optional(),
   follow_up_date: z.string().optional(),
   notes: z.string().optional(),
-  // vital signs
   blood_pressure: z.string().optional(),
   temperature: z.string().optional(),
   heart_rate: z.string().optional(),
@@ -66,6 +66,7 @@ function toFormDefaults(record?: MedicalRecord): Partial<MedicalRecordFormData> 
 }
 
 export function MedicalRecordForm({ doctors, defaultValues, isSubmitting, onSubmit, onCancel }: Props) {
+  const { t } = useI18n();
   const {
     register,
     handleSubmit,
@@ -82,17 +83,17 @@ export function MedicalRecordForm({ doctors, defaultValues, isSubmitting, onSubm
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       {/* Doctor + Visit date */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Doctor *</Label>
+          <Label>{t("records.doctorRequired")}</Label>
           <Select value={doctorId} onValueChange={(v) => setValue("doctor_id", v)}>
             <SelectTrigger>
-              <SelectValue placeholder="Select doctor" />
+              <SelectValue placeholder={t("records.selectDoctor")} />
             </SelectTrigger>
             <SelectContent>
               {doctors.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
-                  Dr. {d.name}
+                  {t("common.dr")} {d.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -102,7 +103,7 @@ export function MedicalRecordForm({ doctors, defaultValues, isSubmitting, onSubm
           )}
         </div>
         <div className="space-y-2">
-          <Label htmlFor="visit_date">Visit Date *</Label>
+          <Label htmlFor="visit_date">{t("records.visitDateRequired")}</Label>
           <Input id="visit_date" type="date" {...register("visit_date")} />
           {errors.visit_date && (
             <p className="text-xs text-destructive">{errors.visit_date.message}</p>
@@ -111,53 +112,53 @@ export function MedicalRecordForm({ doctors, defaultValues, isSubmitting, onSubm
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="chief_complaint">Chief Complaint</Label>
-        <Input id="chief_complaint" placeholder="e.g. Headache, chest pain…" {...register("chief_complaint")} />
+        <Label htmlFor="chief_complaint">{t("records.chiefComplaint")}</Label>
+        <Input id="chief_complaint" placeholder={t("records.chiefComplaintPlaceholder")} {...register("chief_complaint")} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="diagnosis">Diagnosis</Label>
-        <Textarea id="diagnosis" rows={2} placeholder="Clinical diagnosis…" {...register("diagnosis")} />
+        <Label htmlFor="diagnosis">{t("records.diagnosis")}</Label>
+        <Textarea id="diagnosis" rows={2} placeholder={t("records.diagnosisPlaceholder")} {...register("diagnosis")} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="treatment">Treatment</Label>
-        <Textarea id="treatment" rows={2} placeholder="Treatment plan…" {...register("treatment")} />
+        <Label htmlFor="treatment">{t("records.treatment")}</Label>
+        <Textarea id="treatment" rows={2} placeholder={t("records.treatmentPlaceholder")} {...register("treatment")} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="prescriptions">Prescriptions</Label>
-        <Textarea id="prescriptions" rows={2} placeholder="Medications prescribed…" {...register("prescriptions")} />
+        <Label htmlFor="prescriptions">{t("records.prescriptions")}</Label>
+        <Textarea id="prescriptions" rows={2} placeholder={t("records.prescriptionsPlaceholder")} {...register("prescriptions")} />
       </div>
 
       <Separator />
 
       {/* Vital Signs */}
       <div>
-        <p className="text-sm font-medium text-slate-700 mb-3">Vital Signs</p>
+        <p className="text-sm font-medium text-slate-700 mb-3">{t("records.vitalSigns")}</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="blood_pressure" className="text-xs">Blood Pressure</Label>
+            <Label htmlFor="blood_pressure" className="text-xs">{t("records.bloodPressure")}</Label>
             <Input id="blood_pressure" placeholder="120/80 mmHg" {...register("blood_pressure")} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="temperature" className="text-xs">Temperature</Label>
+            <Label htmlFor="temperature" className="text-xs">{t("records.temperature")}</Label>
             <Input id="temperature" placeholder="37.0 °C" {...register("temperature")} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="heart_rate" className="text-xs">Heart Rate</Label>
+            <Label htmlFor="heart_rate" className="text-xs">{t("records.heartRate")}</Label>
             <Input id="heart_rate" placeholder="72 bpm" {...register("heart_rate")} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="weight" className="text-xs">Weight</Label>
+            <Label htmlFor="weight" className="text-xs">{t("records.weight")}</Label>
             <Input id="weight" placeholder="70 kg" {...register("weight")} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="height" className="text-xs">Height</Label>
+            <Label htmlFor="height" className="text-xs">{t("records.height")}</Label>
             <Input id="height" placeholder="175 cm" {...register("height")} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="oxygen_saturation" className="text-xs">O₂ Saturation</Label>
+            <Label htmlFor="oxygen_saturation" className="text-xs">{t("records.oxygenSat")}</Label>
             <Input id="oxygen_saturation" placeholder="98%" {...register("oxygen_saturation")} />
           </div>
         </div>
@@ -165,23 +166,23 @@ export function MedicalRecordForm({ doctors, defaultValues, isSubmitting, onSubm
 
       <Separator />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="follow_up_date">Follow-up Date</Label>
+          <Label htmlFor="follow_up_date">{t("records.followUp")}</Label>
           <Input id="follow_up_date" type="date" {...register("follow_up_date")} />
         </div>
         <div className="space-y-2 col-span-full">
-          <Label htmlFor="notes">Additional Notes</Label>
+          <Label htmlFor="notes">{t("records.additionalNotes")}</Label>
           <Textarea id="notes" rows={2} {...register("notes")} />
         </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Save Record"}
+          {isSubmitting ? t("records.saving") : t("records.save")}
         </Button>
       </div>
     </form>

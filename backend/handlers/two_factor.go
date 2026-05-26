@@ -21,10 +21,10 @@ func Setup2FA(c *gin.Context) {
 	secret, qrDataURL, err := services.Setup2FA(userID)
 	if err != nil {
 		if errors.Is(err, services.ErrForbidden) {
-			response.Forbidden(c, "2FA is not available for demo accounts")
+			response.Forbidden(c, "auth.2fa_setup_failed")
 			return
 		}
-		response.InternalError(c, "failed to setup 2FA")
+		response.InternalError(c, "auth.2fa_setup_failed")
 		return
 	}
 
@@ -40,16 +40,16 @@ func Enable2FA(c *gin.Context) {
 
 	var req twoFACodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
 	if err := services.Enable2FA(userID, req.Code); err != nil {
 		if errors.Is(err, services.ErrInvalidCode) {
-			response.BadRequest(c, "invalid verification code")
+			response.BadRequest(c, "auth.2fa_invalid")
 			return
 		}
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "auth.2fa_enable_failed")
 		return
 	}
 
@@ -63,23 +63,23 @@ func Verify2FA(c *gin.Context) {
 		Code         string `json:"code" binding:"required,len=6"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
 	session, user, err := services.Verify2FA(req.PreAuthToken, req.Code)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) || errors.Is(err, services.ErrInvalidCode) {
-			response.Unauthorized(c, "invalid or expired token")
+			response.Unauthorized(c, "auth.2fa_invalid")
 			return
 		}
-		response.InternalError(c, "verification failed")
+		response.InternalError(c, "auth.2fa_invalid")
 		return
 	}
 
 	maxAge := config.App.SessionExpiryHours * 3600
 	setSessionCookie(c, session.ID, maxAge)
-	response.OK(c, gin.H{"user": user})
+	response.OK(c, gin.H{"user": user.ToResponse()})
 }
 
 // POST /api/auth/2fa/disable
@@ -88,16 +88,16 @@ func Disable2FA(c *gin.Context) {
 
 	var req twoFACodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
 	if err := services.Disable2FA(userID, req.Code); err != nil {
 		if errors.Is(err, services.ErrInvalidCode) {
-			response.BadRequest(c, "invalid verification code")
+			response.BadRequest(c, "auth.2fa_invalid")
 			return
 		}
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "auth.2fa_disable_failed")
 		return
 	}
 

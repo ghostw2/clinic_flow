@@ -48,17 +48,17 @@ func GetMedicalRecords(c *gin.Context) {
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid patient id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	records, err := services.ListMedicalRecords(patientID, clinicID)
 	if err != nil {
-		response.InternalError(c, "failed to fetch records")
+		response.InternalError(c, "record.fetch_failed")
 		return
 	}
 
-	response.OK(c, gin.H{"records": records})
+	response.OK(c, gin.H{"records": models.MedicalRecordsToResponse(records)})
 }
 
 // POST /api/patients/:id/records
@@ -67,19 +67,19 @@ func CreateMedicalRecord(c *gin.Context) {
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		response.BadRequest(c, "invalid patient id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	var req CreateMedicalRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
 	doctorID, err := uuid.Parse(req.DoctorID)
 	if err != nil {
-		response.BadRequest(c, "invalid doctor_id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
@@ -98,7 +98,7 @@ func CreateMedicalRecord(c *gin.Context) {
 	if req.AppointmentID != "" {
 		apptID, err := uuid.Parse(req.AppointmentID)
 		if err != nil {
-			response.BadRequest(c, "invalid appointment_id")
+			response.BadRequest(c, "validation.invalid_id")
 			return
 		}
 		input.AppointmentID = &apptID
@@ -117,11 +117,11 @@ func CreateMedicalRecord(c *gin.Context) {
 
 	record, err := services.CreateMedicalRecord(clinicID, input)
 	if err != nil {
-		response.InternalError(c, "failed to create record")
+		response.InternalError(c, "record.create_failed")
 		return
 	}
 
-	response.Created(c, record)
+	response.Created(c, record.ToResponse())
 }
 
 // PUT /api/patients/:id/records/:recordId
@@ -130,13 +130,13 @@ func UpdateMedicalRecord(c *gin.Context) {
 
 	recordID, err := uuid.Parse(c.Param("recordId"))
 	if err != nil {
-		response.BadRequest(c, "invalid record id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	var req UpdateMedicalRecordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "validation.invalid_input")
 		return
 	}
 
@@ -163,14 +163,14 @@ func UpdateMedicalRecord(c *gin.Context) {
 	record, err := services.UpdateMedicalRecord(recordID.String(), clinicID, input)
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "record not found")
+			response.NotFound(c, "record.not_found")
 			return
 		}
-		response.InternalError(c, "failed to update record")
+		response.InternalError(c, "record.update_failed")
 		return
 	}
 
-	response.OK(c, record)
+	response.OK(c, record.ToResponse())
 }
 
 // DELETE /api/patients/:id/records/:recordId
@@ -179,16 +179,16 @@ func DeleteMedicalRecord(c *gin.Context) {
 
 	recordID, err := uuid.Parse(c.Param("recordId"))
 	if err != nil {
-		response.BadRequest(c, "invalid record id")
+		response.BadRequest(c, "validation.invalid_id")
 		return
 	}
 
 	if err := services.DeleteMedicalRecord(recordID.String(), clinicID); err != nil {
 		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "record not found")
+			response.NotFound(c, "record.not_found")
 			return
 		}
-		response.InternalError(c, "failed to delete record")
+		response.InternalError(c, "record.delete_failed")
 		return
 	}
 

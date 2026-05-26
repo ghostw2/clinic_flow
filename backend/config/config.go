@@ -26,6 +26,7 @@ type Config struct {
 	StripeAmountStarter string
 	StripeAmountGrowth  string
 	StripeAmountClinic  string
+	UploadsDir          string
 }
 
 var App Config
@@ -56,6 +57,7 @@ func Load() {
 		StripeAmountStarter: getEnv("STRIPE_AMOUNT_STARTER", "9.99"),
 		StripeAmountGrowth:  getEnv("STRIPE_AMOUNT_GROWTH", "19.99"),
 		StripeAmountClinic:  getEnv("STRIPE_AMOUNT_CLINIC", "29.99"),
+		UploadsDir:          getEnv("UPLOADS_DIR", "./uploads"),
 	}
 }
 

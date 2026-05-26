@@ -5,9 +5,16 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import useSWR from "swr";
 import Link from "next/link";
 import { patientsApi } from "@/lib/api";
+import { downloadCSV, downloadExcel } from "@/lib/export";
 import { PatientCard } from "@/components/PatientCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -21,7 +28,8 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
-import { Plus, Search } from "lucide-react";
+import { useI18n } from "@/contexts/i18nContext";
+import { Plus, Search, Download, FileSpreadsheet, FileText, X } from "lucide-react";
 const PAGE_SIZE = 20;
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,13 +37,11 @@ import { z } from "zod";
 import type { PaginatedPatients } from "@/types";
 
 const schema = z.object({
-  // Basic
   name: z.string().min(1, "Name is required"),
   dob: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   notes: z.string().optional(),
-  // Medical profile
   gender: z.string().optional(),
   blood_type: z.string().optional(),
   allergies: z.string().optional(),
@@ -49,18 +55,68 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 const BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const GENDERS = ["Male", "Female", "Other", "Prefer not to say"];
 
 export default function PatientsPage() {
   const [search, setSearch] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const { data, mutate, isLoading } = useSWR<PaginatedPatients>(
-    ["patients", search, page],
-    () => patientsApi.list({ search, page }).then((r) => r.data)
+    ["patients", search, createdFrom, createdTo, page],
+    () => patientsApi.list({ search, created_from: createdFrom, created_to: createdTo, page }).then((r) => r.data)
   );
+
+  const hasFilters = search || createdFrom || createdTo;
+
+  const clearFilters = () => {
+    setSearch("");
+    setCreatedFrom("");
+    setCreatedTo("");
+    setPage(1);
+  };
+
+  const handleExport = async (format: "csv" | "excel") => {
+    setExporting(true);
+    try {
+      const res = await patientsApi.list({
+        search,
+        created_from: createdFrom,
+        created_to: createdTo,
+        all: true,
+      });
+      const patients = res.data.patients ?? [];
+      const headers = ["Name", "DOB", "Gender", "Phone", "Email", "Address", "Occupation", "Blood Type", "Allergies", "Chronic Conditions", "Insurance", "Emergency Contact", "Emergency Phone", "Notes", "Registered"];
+      const rows = patients.map((p) => [
+        p.name,
+        p.dob ? p.dob.slice(0, 10) : "",
+        p.gender ?? "",
+        p.phone ?? "",
+        p.email ?? "",
+        p.address ?? "",
+        p.occupation ?? "",
+        p.blood_type ?? "",
+        p.allergies ?? "",
+        p.chronic_conditions ?? "",
+        p.insurance ?? "",
+        p.emergency_contact_name ?? "",
+        p.emergency_contact_phone ?? "",
+        p.notes ?? "",
+        p.created_at.slice(0, 10),
+      ]);
+      const filename = `patients_${new Date().toISOString().slice(0, 10)}`;
+      if (format === "csv") downloadCSV(filename, headers, rows);
+      else downloadExcel(filename, headers, rows);
+    } catch {
+      toast({ title: t("patients.toast.exportFailed"), variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const totalPages = Math.ceil((data?.total ?? 0) / PAGE_SIZE);
 
@@ -80,38 +136,82 @@ export default function PatientsPage() {
   const onSubmit = async (values: FormData) => {
     try {
       await patientsApi.create({ ...values, name: values.name });
-      toast({ title: "Patient created successfully" });
+      toast({ title: t("patients.toast.created") });
       mutate();
       setFormOpen(false);
       reset();
     } catch {
-      toast({ title: "Failed to create patient", variant: "destructive" });
+      toast({ title: t("patients.toast.createFailed"), variant: "destructive" });
     }
   };
+
+  const GENDERS = [
+    { value: "Male", label: t("patients.genders.male") },
+    { value: "Female", label: t("patients.genders.female") },
+    { value: "Other", label: t("patients.genders.other") },
+    { value: "Prefer not to say", label: t("patients.genders.preferNotToSay") },
+  ];
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Patients</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{t("patients.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {data?.total ?? 0} patients registered
+            {t("patients.registered", { count: data?.total ?? 0 })}
           </p>
         </div>
         <Button onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Patient
+          <Plus className="h-4 w-4 mr-2" /> {t("patients.newPatient")}
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* Filters + Export */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-auto">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={t("patients.searchPlaceholder")}
+            className="pl-9 w-full sm:w-56"
+            value={search}
+            onChange={handleSearchChange}
+          />
+        </div>
         <Input
-          placeholder="Search by name, email, phone…"
-          className="pl-9"
-          value={search}
-          onChange={handleSearchChange}
+          type="date"
+          className="w-full sm:w-40"
+          value={createdFrom}
+          onChange={(e) => { setCreatedFrom(e.target.value); setPage(1); }}
+          title={t("patients.registeredFrom")}
         />
+        <Input
+          type="date"
+          className="w-full sm:w-40"
+          value={createdTo}
+          onChange={(e) => { setCreatedTo(e.target.value); setPage(1); }}
+          title={t("patients.registeredTo")}
+        />
+        {hasFilters && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <X className="h-4 w-4 mr-1" /> {t("common.clear")}
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={exporting}>
+              <Download className="h-4 w-4 mr-1.5" />
+              {exporting ? t("common.exporting") : t("common.export")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => handleExport("csv")}>
+              <FileText className="h-4 w-4 mr-2" /> Download CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExport("excel")}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Patient Grid */}
@@ -130,7 +230,7 @@ export default function PatientsPage() {
           ))}
           {data?.patients?.length === 0 && (
             <div className="col-span-full text-center py-12 text-muted-foreground">
-              No patients found
+              {t("patients.noPatients")}
             </div>
           )}
         </div>
@@ -148,7 +248,7 @@ export default function PatientsPage() {
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
+            {t("common.page")} {page} {t("common.of")} {totalPages}
           </span>
           <Button
             variant="outline"
@@ -165,21 +265,21 @@ export default function PatientsPage() {
       <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) reset(); }}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New Patient</DialogTitle>
+            <DialogTitle>{t("patients.form.title")}</DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <Tabs defaultValue="basic" className="mt-2">
               <TabsList className="w-full">
-                <TabsTrigger value="basic" className="flex-1">Basic Info</TabsTrigger>
-                <TabsTrigger value="medical" className="flex-1">Medical Profile</TabsTrigger>
-                <TabsTrigger value="emergency" className="flex-1">Emergency</TabsTrigger>
+                <TabsTrigger value="basic" className="flex-1">{t("patients.form.basicInfo")}</TabsTrigger>
+                <TabsTrigger value="medical" className="flex-1">{t("patients.form.medicalProfile")}</TabsTrigger>
+                <TabsTrigger value="emergency" className="flex-1">{t("patients.form.emergency")}</TabsTrigger>
               </TabsList>
 
               {/* Basic Info */}
               <TabsContent value="basic" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name *</Label>
+                  <Label htmlFor="name">{t("patients.form.fullNameRequired")}</Label>
                   <Input id="name" {...register("name")} />
                   {errors.name && (
                     <p className="text-xs text-destructive">{errors.name.message}</p>
@@ -187,22 +287,22 @@ export default function PatientsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dob">Date of Birth</Label>
+                    <Label htmlFor="dob">{t("patients.form.dateOfBirth")}</Label>
                     <Input id="dob" type="date" {...register("dob")} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Gender</Label>
+                    <Label>{t("patients.form.gender")}</Label>
                     <Controller
                       control={control}
                       name="gender"
                       render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select gender" />
+                            <SelectValue placeholder={t("patients.form.selectGender")} />
                           </SelectTrigger>
                           <SelectContent>
                             {GENDERS.map((g) => (
-                              <SelectItem key={g} value={g}>{g}</SelectItem>
+                              <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -212,11 +312,11 @@ export default function PatientsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
+                    <Label htmlFor="phone">{t("patients.form.phone")}</Label>
                     <Input id="phone" {...register("phone")} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">{t("patients.form.email")}</Label>
                     <Input id="email" type="email" {...register("email")} />
                     {errors.email && (
                       <p className="text-xs text-destructive">{errors.email.message}</p>
@@ -224,15 +324,15 @@ export default function PatientsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="occupation">Occupation</Label>
+                  <Label htmlFor="occupation">{t("patients.form.occupation")}</Label>
                   <Input id="occupation" {...register("occupation")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
+                  <Label htmlFor="address">{t("patients.form.address")}</Label>
                   <Textarea id="address" rows={2} {...register("address")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="notes">Notes</Label>
+                  <Label htmlFor="notes">{t("patients.form.notes")}</Label>
                   <Textarea id="notes" rows={2} {...register("notes")} />
                 </div>
               </TabsContent>
@@ -241,14 +341,14 @@ export default function PatientsPage() {
               <TabsContent value="medical" className="space-y-4 mt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Blood Type</Label>
+                    <Label>{t("patients.form.bloodType")}</Label>
                     <Controller
                       control={control}
                       name="blood_type"
                       render={({ field }) => (
                         <Select value={field.value} onValueChange={field.onChange}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select blood type" />
+                            <SelectValue placeholder={t("patients.form.selectBloodType")} />
                           </SelectTrigger>
                           <SelectContent>
                             {BLOOD_TYPES.map((bt) => (
@@ -260,25 +360,25 @@ export default function PatientsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="insurance">Insurance</Label>
-                    <Input id="insurance" placeholder="Provider / policy number" {...register("insurance")} />
+                    <Label htmlFor="insurance">{t("patients.form.insurance")}</Label>
+                    <Input id="insurance" placeholder={t("patients.form.insurancePlaceholder")} {...register("insurance")} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="allergies">Allergies</Label>
+                  <Label htmlFor="allergies">{t("patients.form.allergies")}</Label>
                   <Textarea
                     id="allergies"
                     rows={3}
-                    placeholder="e.g. Penicillin, peanuts, latex…"
+                    placeholder={t("patients.form.allergiesPlaceholder")}
                     {...register("allergies")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="chronic_conditions">Chronic Conditions</Label>
+                  <Label htmlFor="chronic_conditions">{t("patients.form.chronicConditions")}</Label>
                   <Textarea
                     id="chronic_conditions"
                     rows={3}
-                    placeholder="e.g. Diabetes Type 2, hypertension…"
+                    placeholder={t("patients.form.chronicConditionsPlaceholder")}
                     {...register("chronic_conditions")}
                   />
                 </div>
@@ -286,15 +386,13 @@ export default function PatientsPage() {
 
               {/* Emergency Contact */}
               <TabsContent value="emergency" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">
-                  Person to contact in case of emergency.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("patients.form.emergencyHelp")}</p>
                 <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_name">Full Name</Label>
+                  <Label htmlFor="emergency_contact_name">{t("patients.form.emergencyContactName")}</Label>
                   <Input id="emergency_contact_name" {...register("emergency_contact_name")} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="emergency_contact_phone">Phone</Label>
+                  <Label htmlFor="emergency_contact_phone">{t("patients.form.emergencyContactPhone")}</Label>
                   <Input id="emergency_contact_phone" {...register("emergency_contact_phone")} />
                 </div>
               </TabsContent>
@@ -304,10 +402,10 @@ export default function PatientsPage() {
 
             <div className="flex justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => { setFormOpen(false); reset(); }}>
-                Cancel
+                {t("patients.form.cancel")}
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating…" : "Create Patient"}
+                {isSubmitting ? t("patients.form.creating") : t("patients.form.create")}
               </Button>
             </div>
           </form>

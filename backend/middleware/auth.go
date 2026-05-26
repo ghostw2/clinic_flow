@@ -12,13 +12,13 @@ func AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessionID, err := c.Cookie(SessionCookie)
 		if err != nil || sessionID == "" {
-			response.Abort(c, 401, "not authenticated")
+			response.Abort(c, 401, "auth.not_authenticated")
 			return
 		}
 
 		session, err := services.GetSession(sessionID)
 		if err != nil {
-			response.Abort(c, 401, "session expired or invalid")
+			response.Abort(c, 401, "auth.session_expired")
 			return
 		}
 
@@ -39,6 +39,6 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 				return
 			}
 		}
-		response.Abort(c, 403, "insufficient permissions")
+		response.Abort(c, 403, "auth.unauthorized")
 	}
 }

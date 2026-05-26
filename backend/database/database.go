@@ -34,6 +34,7 @@ func autoMigrate() {
 		&models.Patient{},
 		&models.Appointment{},
 		&models.Notification{},
+		&models.AppointmentDocument{},
 	); err != nil {
 		log.Fatalf("AutoMigrate failed: %v", err)
 	}

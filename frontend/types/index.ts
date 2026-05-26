@@ -14,24 +14,21 @@ export type UserRole = "admin" | "doctor" | "staff";
 
 export interface User {
   id: string;
-  clinic_id: string;
   role: UserRole;
   name: string;
   email: string;
   two_factor_enabled: boolean;
-  two_factor_verified: boolean;
   created_at: string;
   clinic?: Clinic;
 }
 
 export interface Patient {
   id: string;
-  clinic_id: string;
   name: string;
   dob?: string;
-  phone: string;
-  email: string;
-  notes: string;
+  phone?: string;
+  email?: string;
+  notes?: string;
   created_at: string;
   // Medical profile
   gender?: string;
@@ -58,7 +55,6 @@ export interface VitalSigns {
 
 export interface MedicalRecord {
   id: string;
-  clinic_id: string;
   patient_id: string;
   appointment_id?: string;
   doctor_id: string;
@@ -84,16 +80,30 @@ export type AppointmentStatus = "pending" | "confirmed" | "completed" | "cancell
 
 export interface Appointment {
   id: string;
-  clinic_id: string;
   patient_id: string;
   doctor_id: string;
   datetime: string;
   duration: number;
   status: AppointmentStatus;
-  notes: string;
+  notes?: string;
   created_at: string;
   patient?: Patient;
   doctor?: User;
+}
+
+export type DocumentType = "odontogram" | "dicom" | "xray" | "lab" | "report" | "photo" | "other";
+
+export interface AppointmentDocument {
+  id: string;
+  appointment_id: string;
+  clinic_id: string;
+  uploaded_by: string;
+  original_name: string;
+  mime_type: string;
+  size: number;
+  doc_type: DocumentType;
+  created_at: string;
+  uploader?: User;
 }
 
 export interface DashboardStats {

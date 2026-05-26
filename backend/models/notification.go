@@ -39,3 +39,31 @@ func (n *Notification) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (Notification) TableName() string { return "notifications" }
+
+type NotificationResponse struct {
+	ID            uuid.UUID            `json:"id"`
+	AppointmentID uuid.UUID            `json:"appointment_id"`
+	Type          NotificationType     `json:"type"`
+	Status        NotificationStatus   `json:"status"`
+	SentAt        *time.Time           `json:"sent_at,omitempty"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
+	Appointment   *AppointmentResponse `json:"appointment,omitempty"`
+}
+
+func (n Notification) ToResponse() NotificationResponse {
+	r := NotificationResponse{
+		ID:            n.ID,
+		AppointmentID: n.AppointmentID,
+		Type:          n.Type,
+		Status:        n.Status,
+		SentAt:        n.SentAt,
+		CreatedAt:     n.CreatedAt,
+		UpdatedAt:     n.UpdatedAt,
+	}
+	if n.Appointment.ID != uuid.Nil {
+		a := n.Appointment.ToResponse()
+		r.Appointment = &a
+	}
+	return r
+}

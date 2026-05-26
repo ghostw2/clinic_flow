@@ -43,9 +43,20 @@ type UpdatePatientInput struct {
 	Occupation            string
 }
 
-func ListPatients(clinicID uuid.UUID, search string, page int) ([]models.Patient, int64, error) {
-	const limit = 20
-	return repositories.GetPatients(clinicID, search, page, limit)
+type ListPatientsInput struct {
+	Search      string
+	CreatedFrom string
+	CreatedTo   string
+	Page        int
+	All         bool
+}
+
+func ListPatients(clinicID uuid.UUID, input ListPatientsInput) ([]models.Patient, int64, error) {
+	pageLimit := 20
+	if input.All {
+		pageLimit = 0
+	}
+	return repositories.GetPatients(clinicID, input.Search, input.CreatedFrom, input.CreatedTo, input.Page, pageLimit)
 }
 
 func GetPatient(id string, clinicID uuid.UUID) (models.Patient, error) {
@@ -165,6 +176,18 @@ func DeletePatient(id string, clinicID uuid.UUID) error {
 type PatientHistory struct {
 	Patient models.Patient         `json:"patient"`
 	Records []models.MedicalRecord `json:"records"`
+}
+
+type PatientHistoryResponse struct {
+	Patient models.PatientResponse        `json:"patient"`
+	Records []models.MedicalRecordResponse `json:"records"`
+}
+
+func (h PatientHistory) ToResponse() PatientHistoryResponse {
+	return PatientHistoryResponse{
+		Patient: h.Patient.ToResponse(),
+		Records: models.MedicalRecordsToResponse(h.Records),
+	}
 }
 
 func GetPatientHistory(id string, clinicID uuid.UUID) (PatientHistory, error) {

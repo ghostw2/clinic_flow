@@ -39,3 +39,48 @@ func (a *Appointment) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+type AppointmentResponse struct {
+	ID        uuid.UUID         `json:"id"`
+	PatientID uuid.UUID         `json:"patient_id"`
+	DoctorID  uuid.UUID         `json:"doctor_id"`
+	Datetime  time.Time         `json:"datetime"`
+	Duration  int               `json:"duration"`
+	Status    AppointmentStatus `json:"status"`
+	Notes     string            `json:"notes,omitempty"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+	Patient   *PatientResponse  `json:"patient,omitempty"`
+	Doctor    *UserResponse     `json:"doctor,omitempty"`
+}
+
+func (a Appointment) ToResponse() AppointmentResponse {
+	r := AppointmentResponse{
+		ID:        a.ID,
+		PatientID: a.PatientID,
+		DoctorID:  a.DoctorID,
+		Datetime:  a.Datetime,
+		Duration:  a.Duration,
+		Status:    a.Status,
+		Notes:     a.Notes,
+		CreatedAt: a.CreatedAt,
+		UpdatedAt: a.UpdatedAt,
+	}
+	if a.Patient.ID != uuid.Nil {
+		p := a.Patient.ToResponse()
+		r.Patient = &p
+	}
+	if a.Doctor.ID != uuid.Nil {
+		d := a.Doctor.ToResponse()
+		r.Doctor = &d
+	}
+	return r
+}
+
+func AppointmentsToResponse(appts []Appointment) []AppointmentResponse {
+	result := make([]AppointmentResponse, len(appts))
+	for i, a := range appts {
+		result[i] = a.ToResponse()
+	}
+	return result
+}

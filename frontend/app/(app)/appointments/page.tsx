@@ -3,11 +3,19 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { appointmentsApi, usersApi } from "@/lib/api";
+import { downloadCSV, downloadExcel } from "@/lib/export";
 import { CalendarView } from "@/components/Calendar";
 import { AppointmentForm } from "@/components/AppointmentForm";
+import { AppointmentDetailSheet } from "@/components/AppointmentDetailSheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -25,7 +33,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDateTime, statusColor } from "@/lib/utils";
-import { Plus, Calendar, List, X } from "lucide-react";
+import { useI18n } from "@/contexts/i18nContext";
+import { Plus, Calendar, List, X, Download, FileSpreadsheet, FileText } from "lucide-react";
 import type { Appointment, User } from "@/types";
 
 export default function AppointmentsPage() {
@@ -40,11 +49,12 @@ export default function AppointmentsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
-
-  // List-view filters (client-side)
+  const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState("");
+
+  const { t } = useI18n();
 
   const doctors = users.filter((u) => u.role === "doctor");
   const hasFilters = dateFilter || statusFilter || doctorFilter;
@@ -53,6 +63,21 @@ export default function AppointmentsPage() {
     setDateFilter("");
     setStatusFilter("");
     setDoctorFilter("");
+  };
+
+  const handleExport = (format: "csv" | "excel") => {
+    const headers = ["Patient", "Doctor", "Date & Time", "Duration (min)", "Status", "Notes"];
+    const rows = filtered.map((appt) => [
+      appt.patient?.name ?? "",
+      appt.doctor?.name ? `Dr. ${appt.doctor.name}` : "",
+      formatDateTime(appt.datetime),
+      appt.duration,
+      appt.status,
+      appt.notes ?? "",
+    ]);
+    const filename = `appointments_${new Date().toISOString().slice(0, 10)}`;
+    if (format === "csv") downloadCSV(filename, headers, rows);
+    else downloadExcel(filename, headers, rows);
   };
 
   const filtered = appointments.filter((appt) => {
@@ -73,8 +98,12 @@ export default function AppointmentsPage() {
     setFormOpen(true);
   };
 
+  const handleDetailOpen = (appt: Appointment) => {
+    setDetailAppt(appt);
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm("Cancel this appointment?")) return;
+    if (!confirm(t("appointments.cancelConfirm"))) return;
     await appointmentsApi.remove(id);
     mutate();
   };
@@ -83,30 +112,28 @@ export default function AppointmentsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Appointments</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Schedule and manage patient appointments
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">{t("appointments.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-1">{t("appointments.subtitle")}</p>
         </div>
         <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> New Appointment
+          <Plus className="h-4 w-4 mr-2" /> {t("appointments.newAppointment")}
         </Button>
       </div>
 
       <Tabs defaultValue="calendar">
         <TabsList>
           <TabsTrigger value="calendar">
-            <Calendar className="h-4 w-4 mr-1" /> Calendar
+            <Calendar className="h-4 w-4 mr-1" /> {t("appointments.calendar")}
           </TabsTrigger>
           <TabsTrigger value="list">
-            <List className="h-4 w-4 mr-1" /> List
+            <List className="h-4 w-4 mr-1" /> {t("appointments.list")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="mt-4">
           <CalendarView
             appointments={appointments}
-            onEventClick={(appt) => handleEdit(appt)}
+            onEventClick={(appt) => handleDetailOpen(appt)}
             onDateClick={() => {
               setEditing(null);
               setFormOpen(true);
@@ -119,43 +146,58 @@ export default function AppointmentsPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Input
               type="date"
-              className="w-40"
+              className="w-full sm:w-40"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36">
-                <SelectValue placeholder="All statuses" />
+              <SelectTrigger className="w-full sm:w-36">
+                <SelectValue placeholder={t("appointments.allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="pending">{t("appointments.statuses.pending")}</SelectItem>
+                <SelectItem value="confirmed">{t("appointments.statuses.confirmed")}</SelectItem>
+                <SelectItem value="completed">{t("appointments.statuses.completed")}</SelectItem>
+                <SelectItem value="cancelled">{t("appointments.statuses.cancelled")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={doctorFilter} onValueChange={setDoctorFilter}>
-              <SelectTrigger className="w-44">
-                <SelectValue placeholder="All doctors" />
+              <SelectTrigger className="w-full sm:w-44">
+                <SelectValue placeholder={t("appointments.allDoctors")} />
               </SelectTrigger>
               <SelectContent>
                 {doctors.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
-                    Dr. {d.name}
+                    {t("common.dr")} {d.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             {hasFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="h-4 w-4 mr-1" /> Clear
+                <X className="h-4 w-4 mr-1" /> {t("common.clear")}
               </Button>
             )}
             {hasFilters && (
               <span className="text-sm text-muted-foreground">
-                {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+                {filtered.length} {filtered.length !== 1 ? t("common.results_plural", { count: "" }).replace("{{count}} ", "") : t("common.results", { count: "" }).replace("{{count}} ", "")}
               </span>
             )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-1.5" /> {t("common.export")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("csv")}>
+                  <FileText className="h-4 w-4 mr-2" /> Download CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("excel")}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" /> Download Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {isLoading ? (
@@ -165,23 +207,23 @@ export default function AppointmentsPage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-md border bg-white">
+            <div className="rounded-md border bg-white overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("appointments.table.patient")}</TableHead>
+                    <TableHead>{t("appointments.table.doctor")}</TableHead>
+                    <TableHead>{t("appointments.table.dateTime")}</TableHead>
+                    <TableHead>{t("appointments.table.duration")}</TableHead>
+                    <TableHead>{t("appointments.table.status")}</TableHead>
+                    <TableHead className="text-right">{t("appointments.table.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                        No appointments found
+                        {t("appointments.noAppointments")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -190,28 +232,28 @@ export default function AppointmentsPage() {
                         <TableCell className="font-medium">
                           {appt.patient?.name ?? "—"}
                         </TableCell>
-                        <TableCell>Dr. {appt.doctor?.name ?? "—"}</TableCell>
+                        <TableCell>{t("common.dr")} {appt.doctor?.name ?? "—"}</TableCell>
                         <TableCell>{formatDateTime(appt.datetime)}</TableCell>
-                        <TableCell>{appt.duration} min</TableCell>
+                        <TableCell>{appt.duration} {t("common.min")}</TableCell>
                         <TableCell>
                           <Badge className={statusColor(appt.status)} variant="outline">
-                            {appt.status}
+                            {t(`appointments.statuses.${appt.status}`)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleEdit(appt)}
+                            onClick={() => handleDetailOpen(appt)}
                           >
-                            Edit
+                            {t("common.edit")}
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => handleDelete(appt.id)}
                           >
-                            Cancel
+                            {t("common.cancel")}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -229,6 +271,12 @@ export default function AppointmentsPage() {
         appointment={editing}
         onClose={() => { setFormOpen(false); setEditing(null); }}
         onSaved={handleSaved}
+      />
+
+      <AppointmentDetailSheet
+        appointment={detailAppt}
+        onClose={() => setDetailAppt(null)}
+        onSaved={() => { mutate(); setDetailAppt(null); }}
       />
     </div>
   );
