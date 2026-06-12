@@ -33,11 +33,12 @@ type FormData = z.infer<typeof schema>;
 interface AppointmentFormProps {
   open: boolean;
   appointment?: Appointment | null;
+  defaultDate?: Date;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function AppointmentForm({ open, appointment, onClose, onSaved }: AppointmentFormProps) {
+export function AppointmentForm({ open, appointment, defaultDate, onClose, onSaved }: AppointmentFormProps) {
   const { toast } = useToast();
   const isEditing = !!appointment;
 
@@ -74,9 +75,12 @@ export function AppointmentForm({ open, appointment, onClose, onSaved }: Appoint
         notes: appointment.notes,
       });
     } else {
-      reset({ duration: 30 });
+      reset({
+        duration: 30,
+        datetime: defaultDate ? format(defaultDate, "yyyy-MM-dd'T'HH:mm") : "",
+      });
     }
-  }, [appointment, reset]);
+  }, [appointment, defaultDate, reset]);
 
   const onSubmit = async (data: FormData) => {
     try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -80,6 +80,21 @@ export function CalendarView({ appointments, onEventClick, onDateClick }: Calend
     api.changeView(isMobile ? "dayGridMonth" : "timeGridWeek");
   }, [isMobile]);
 
+  const goToDay = useCallback((date: Date) => {
+    calendarRef.current?.getApi().changeView("timeGridDay", date);
+  }, []);
+
+  const handleDateClick = useCallback((info: DateClickArg) => {
+    const viewType = calendarRef.current?.getApi().view.type;
+    if (viewType === "timeGridDay") {
+      // In day view — open the new appointment form with this time pre-filled
+      onDateClick?.(info.date);
+    } else {
+      // In month or week view — drill into that day
+      goToDay(info.date);
+    }
+  }, [goToDay, onDateClick]);
+
   const now = new Date();
   const scrollHour = Math.max(7, now.getHours() - 1);
   const scrollTime = `${String(scrollHour).padStart(2, "0")}:00:00`;
@@ -110,19 +125,29 @@ export function CalendarView({ appointments, onEventClick, onDateClick }: Calend
         eventClick={(info: EventClickArg) => {
           onEventClick?.(info.event.extendedProps.appointment as Appointment);
         }}
-        dateClick={(info: DateClickArg) => {
-          onDateClick?.(info.date);
-        }}
+        dateClick={handleDateClick}
         eventContent={(info) => <EventContent info={info} />}
+        // Day headers in week view: click navigates to that day
         dayHeaderContent={(args) => {
           const day = args.date.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase();
           const num = args.date.getDate();
+          const isWeekView = calendarRef.current?.getApi().view.type === "timeGridWeek";
           return (
-            <div className="gc-day-header">
+            <div
+              className="gc-day-header"
+              style={{ cursor: isWeekView ? "pointer" : "default" }}
+              onClick={() => isWeekView && goToDay(args.date)}
+            >
               <span className="gc-day-weekday">{day}</span>
               <span className={`gc-day-num${args.isToday ? " gc-today-num" : ""}`}>{num}</span>
             </div>
           );
+        }}
+        // Month view: clicking the day number navigates to day view
+        navLinks={true}
+        navLinkDayClick={(date, jsEvent) => {
+          jsEvent.preventDefault();
+          goToDay(date);
         }}
         slotMinTime="07:00:00"
         slotMaxTime="20:00:00"

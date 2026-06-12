@@ -50,6 +50,7 @@ export default function AppointmentsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
   const [detailAppt, setDetailAppt] = useState<Appointment | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [dateFilter, setDateFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState("");
@@ -115,7 +116,7 @@ export default function AppointmentsPage() {
           <h1 className="text-2xl font-bold text-slate-900">{t("appointments.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{t("appointments.subtitle")}</p>
         </div>
-        <Button onClick={() => { setEditing(null); setFormOpen(true); }}>
+        <Button onClick={() => { setEditing(null); setSelectedDate(undefined); setFormOpen(true); }}>
           <Plus className="h-4 w-4 mr-2" /> {t("appointments.newAppointment")}
         </Button>
       </div>
@@ -134,8 +135,9 @@ export default function AppointmentsPage() {
           <CalendarView
             appointments={appointments}
             onEventClick={(appt) => handleDetailOpen(appt)}
-            onDateClick={() => {
+            onDateClick={(date) => {
               setEditing(null);
+              setSelectedDate(date);
               setFormOpen(true);
             }}
           />
@@ -269,7 +271,8 @@ export default function AppointmentsPage() {
       <AppointmentForm
         open={formOpen}
         appointment={editing}
-        onClose={() => { setFormOpen(false); setEditing(null); }}
+        defaultDate={selectedDate}
+        onClose={() => { setFormOpen(false); setEditing(null); setSelectedDate(undefined); }}
         onSaved={handleSaved}
       />
 
