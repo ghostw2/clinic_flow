@@ -155,7 +155,7 @@ export const medicalRecordsApi = {
 
 // ── Users ─────────────────────────────────────────────────────────────────────
 export const usersApi = {
-  list: () => api.get<User[]>("/users"),
+  list: (params?: { role?: string }) => api.get<User[]>("/users", { params }),
 
   create: (data: {
     name: string;

@@ -14,8 +14,8 @@ type CreateUserInput struct {
 	Role     string
 }
 
-func ListUsers(clinicID uuid.UUID) ([]models.User, error) {
-	return repositories.GetUsersByClinic(clinicID)
+func ListUsers(clinicID uuid.UUID, role string) ([]models.User, error) {
+	return repositories.GetUsersByClinic(clinicID, role)
 }
 
 func CreateUser(clinicID uuid.UUID, input CreateUserInput) (models.User, error) {

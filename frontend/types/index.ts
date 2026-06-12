@@ -72,7 +72,6 @@ export interface MedicalRecord {
 }
 
 export interface PatientHistory {
-  patient: Patient;
   records: MedicalRecord[];
 }
 

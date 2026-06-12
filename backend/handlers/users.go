@@ -18,8 +18,9 @@ type CreateUserRequest struct {
 // GET /api/users
 func GetUsers(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
+	role := c.Query("role")
 
-	users, err := services.ListUsers(clinicID)
+	users, err := services.ListUsers(clinicID, role)
 	if err != nil {
 		response.InternalError(c, "user.fetch_failed")
 		return

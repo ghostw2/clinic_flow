@@ -223,5 +223,6 @@ func GetPatientHistory(c *gin.Context) {
 		return
 	}
 
-	response.OK(c, history.ToResponse())
+	resp := history.ToResponse()
+	response.OK(c, gin.H{"records": resp.Records})
 }

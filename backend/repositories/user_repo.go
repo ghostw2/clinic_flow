@@ -6,12 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func GetUsersByClinic(clinicID uuid.UUID) ([]models.User, error) {
+func GetUsersByClinic(clinicID uuid.UUID, role string) ([]models.User, error) {
 	var users []models.User
-	err := database.DB.
-		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Order("name ASC").
-		Find(&users).Error
+	q := database.DB.Where("clinic_id = ? AND deleted_at IS NULL", clinicID)
+	if role != "" {
+		q = q.Where("role = ?", role)
+	}
+	err := q.Order("name ASC").Find(&users).Error
 	return users, err
 }
 

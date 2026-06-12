@@ -87,12 +87,11 @@ export default function PatientDetailPage() {
     () => patientsApi.history(id).then((r) => r.data)
   );
 
-  const { data: users } = useSWR<UserType[]>(
-    "users",
-    () => usersApi.list().then((r) => r.data)
+  const { data: doctors = [] } = useSWR<UserType[]>(
+    "users/doctors",
+    () => usersApi.list({ role: "doctor" }).then((r) => r.data)
   );
 
-  const doctors = (users ?? []).filter((u) => u.role === "doctor");
   const records = history?.records ?? [];
 
   const openNewRecord = () => {
