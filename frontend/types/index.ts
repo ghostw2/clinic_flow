@@ -136,3 +136,19 @@ export interface LoginResponse {
 export interface ApiError {
   error: string;
 }
+
+export type PermissionAction =
+  | "appointment.create"
+  | "appointment.update"
+  | "appointment.update_status"
+  | "appointment.delete"
+  | "patient.create"
+  | "patient.update"
+  | "patient.delete"
+  | "record.create"
+  | "record.update"
+  | "record.delete"
+  | "document.upload"
+  | "document.delete";
+
+export type ClinicPermissions = Record<string, PermissionAction[]>;

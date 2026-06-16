@@ -18,6 +18,7 @@ type Clinic struct {
 	SubscriptionID     string         `json:"-" gorm:"column:subscription_id"`
 	SubscriptionStatus string         `json:"subscription_status" gorm:"column:subscription_status;default:'free'"`
 	PlanName           string         `json:"plan_name" gorm:"column:plan_name;default:'free'"`
+	Permissions        string         `json:"-" gorm:"type:jsonb;column:permissions;default:'{}'"`
 	CreatedAt          time.Time      `json:"created_at"`
 	UpdatedAt          time.Time      `json:"updated_at"`
 	DeletedAt          gorm.DeletedAt `json:"-" gorm:"index"`

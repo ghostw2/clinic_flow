@@ -43,6 +43,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { Patient, PatientHistory, MedicalRecord, User as UserType } from "@/types";
+import { usePermissions } from "@/hooks/usePermissions";
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
   if (!value) return null;
@@ -76,6 +77,7 @@ export default function PatientDetailPage() {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MedicalRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { can } = usePermissions();
 
   const { data: patient, isLoading: patientLoading } = useSWR<Patient>(
     id ? `patients/${id}` : null,
@@ -286,9 +288,11 @@ export default function PatientDetailPage() {
                 ? t("patients.detail.visitsRecorded_plural", { count: String(records.length) })
                 : t("patients.detail.visitsRecorded", { count: String(records.length) })}
             </p>
-            <Button size="sm" onClick={openNewRecord}>
-              <Plus className="h-4 w-4 mr-1.5" /> {t("patients.detail.newRecord")}
-            </Button>
+            {can("record.create") && (
+              <Button size="sm" onClick={openNewRecord}>
+                <Plus className="h-4 w-4 mr-1.5" /> {t("patients.detail.newRecord")}
+              </Button>
+            )}
           </div>
 
           {records.length === 0 ? (
@@ -297,9 +301,11 @@ export default function PatientDetailPage() {
                 <Stethoscope className="h-10 w-10 text-slate-300 mb-3" />
                 <p className="font-medium text-slate-600">{t("patients.detail.noRecordsTitle")}</p>
                 <p className="text-sm text-muted-foreground mt-1">{t("patients.detail.noRecordsDesc")}</p>
-                <Button className="mt-4" size="sm" onClick={openNewRecord}>
-                  <Plus className="h-4 w-4 mr-1.5" /> {t("patients.detail.newRecord")}
-                </Button>
+                {can("record.create") && (
+                  <Button className="mt-4" size="sm" onClick={openNewRecord}>
+                    <Plus className="h-4 w-4 mr-1.5" /> {t("patients.detail.newRecord")}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -323,22 +329,26 @@ export default function PatientDetailPage() {
                             {t("patients.detail.followUp", { date: formatDate(record.follow_up_date) })}
                           </Badge>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => openEditRecord(record)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
-                          onClick={() => handleDeleteRecord(record.id)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {can("record.update") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEditRecord(record)}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {can("record.delete") && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDeleteRecord(record.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardHeader>

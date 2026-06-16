@@ -30,6 +30,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { useI18n } from "@/contexts/i18nContext";
 import { Plus, Search, Download, FileSpreadsheet, FileText, X } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 const PAGE_SIZE = 20;
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -65,6 +66,7 @@ export default function PatientsPage() {
   const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
   const { t } = useI18n();
+  const { can } = usePermissions();
 
   const { data, mutate, isLoading } = useSWR<PaginatedPatients>(
     ["patients", search, createdFrom, createdTo, page],
@@ -161,9 +163,11 @@ export default function PatientsPage() {
             {t("patients.registered", { count: data?.total ?? 0 })}
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> {t("patients.newPatient")}
-        </Button>
+        {can("patient.create") && (
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> {t("patients.newPatient")}
+          </Button>
+        )}
       </div>
 
       {/* Filters + Export */}

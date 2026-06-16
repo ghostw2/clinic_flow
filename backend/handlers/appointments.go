@@ -114,6 +114,22 @@ func UpdateAppointment(c *gin.Context) {
 		return
 	}
 
+	// Determine required permission: status-only change vs. full update
+	role, _ := c.Get("role")
+	if role != "admin" {
+		onlyStatus := req.Status != "" && req.DoctorID == "" && req.Datetime == "" && req.Duration == 0 && req.Notes == ""
+		action := "appointment.update"
+		if onlyStatus {
+			action = "appointment.update_status"
+		}
+		permsRaw, _ := c.Get("clinic_perms")
+		perms, _ := permsRaw.(map[string][]string)
+		if !services.HasPermission(perms, role.(string), action) {
+			response.Abort(c, 403, "auth.permission_denied")
+			return
+		}
+	}
+
 	appt, err := services.UpdateAppointment(apptID.String(), clinicID, services.UpdateAppointmentInput{
 		DoctorID: req.DoctorID,
 		Datetime: req.Datetime,

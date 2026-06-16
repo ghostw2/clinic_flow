@@ -12,6 +12,7 @@ import type {
   MedicalRecord,
   PatientHistory,
   VitalSigns,
+  ClinicPermissions,
 } from "@/types";
 
 // All requests go through Next.js proxy (/api/* → backend), keeping cookies same-origin
@@ -184,6 +185,12 @@ export const documentsApi = {
 
   remove: (appointmentId: string, docId: string) =>
     api.delete(`/appointments/${appointmentId}/documents/${docId}`),
+};
+
+// ── Permissions ───────────────────────────────────────────────────────────────
+export const permissionsApi = {
+  get: () => api.get<ClinicPermissions>("/settings/permissions"),
+  update: (data: ClinicPermissions) => api.put<ClinicPermissions>("/settings/permissions", data),
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────────

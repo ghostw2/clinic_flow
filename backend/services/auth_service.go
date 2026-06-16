@@ -95,6 +95,7 @@ func Register(input RegisterInput) (LoginResult, error) {
 	if err := repositories.CreateClinic(&clinic); err != nil {
 		return LoginResult{}, err
 	}
+	_ = SeedDefaultPermissions(clinic.ID)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {

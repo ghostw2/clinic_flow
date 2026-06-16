@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { usersApi, authApi, billingApi } from "@/lib/api";
+import { usersApi, authApi, billingApi, permissionsApi } from "@/lib/api";
 
 type PlanInfo = { key: string; name: string; amount: string; description: string };
 import { useAuth } from "@/contexts/AuthContext";
 import { useI18n } from "@/contexts/i18nContext";
+import type { ClinicPermissions, PermissionAction } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Check, ShieldCheck, ShieldOff, ExternalLink, Loader2 } from "lucide-react";
+import { Plus, Check, ShieldCheck, ShieldOff, ExternalLink, Loader2, Lock } from "lucide-react";
 import type { User } from "@/types";
 
 const userSchema = z.object({
@@ -67,6 +68,21 @@ const PLAN_STYLE: Record<string, { color: string; badge: string; popular?: boole
 };
 
 type TwoFAStep = "idle" | "qr" | "confirm-enable" | "confirm-disable";
+
+const PERMISSION_ROWS: { action: PermissionAction; label: string; group: string }[] = [
+  { action: "appointment.create", label: "Create appointments", group: "Appointments" },
+  { action: "appointment.update", label: "Edit appointments", group: "Appointments" },
+  { action: "appointment.update_status", label: "Change appointment status", group: "Appointments" },
+  { action: "appointment.delete", label: "Delete appointments", group: "Appointments" },
+  { action: "patient.create", label: "Create patients", group: "Patients" },
+  { action: "patient.update", label: "Edit patients", group: "Patients" },
+  { action: "patient.delete", label: "Delete patients", group: "Patients" },
+  { action: "record.create", label: "Create medical records", group: "Medical Records" },
+  { action: "record.update", label: "Edit medical records", group: "Medical Records" },
+  { action: "record.delete", label: "Delete medical records", group: "Medical Records" },
+  { action: "document.upload", label: "Upload documents", group: "Documents" },
+  { action: "document.delete", label: "Delete documents", group: "Documents" },
+];
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
@@ -119,6 +135,39 @@ export default function SettingsPage() {
 
   const isAdmin = user?.role === "admin";
   const isDemo = user?.clinic?.is_demo;
+
+  // Permissions state (admin only)
+  const { data: fetchedPerms, mutate: mutatePerms } = useSWR<ClinicPermissions>(
+    isAdmin ? "settings/permissions" : null,
+    () => permissionsApi.get().then((r) => r.data),
+    { revalidateOnFocus: false }
+  );
+  const [localPerms, setLocalPerms] = useState<ClinicPermissions>({});
+  const [permsSaving, setPermsSaving] = useState(false);
+  useEffect(() => {
+    if (fetchedPerms) setLocalPerms(fetchedPerms);
+  }, [fetchedPerms]);
+
+  const togglePerm = (role: string, action: PermissionAction) => {
+    setLocalPerms((prev) => {
+      const current = prev[role] ?? [];
+      const has = current.includes(action);
+      return { ...prev, [role]: has ? current.filter((a) => a !== action) : [...current, action] };
+    });
+  };
+
+  const savePerms = async () => {
+    setPermsSaving(true);
+    try {
+      await permissionsApi.update(localPerms);
+      mutatePerms();
+      toast({ title: "Permissions saved" });
+    } catch {
+      toast({ title: "Failed to save permissions", variant: "destructive" });
+    } finally {
+      setPermsSaving(false);
+    }
+  };
   const currentPlan = user?.clinic?.plan_name;
   const subStatus = user?.clinic?.subscription_status;
   const hasActiveSub = subStatus === "active";
@@ -372,6 +421,79 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Role Permissions — admin only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              Role Permissions
+            </CardTitle>
+            <CardDescription>
+              Control what doctors and staff can do. Admin always has full access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[55%]">Action</TableHead>
+                    <TableHead className="text-center">Admin</TableHead>
+                    <TableHead className="text-center">Doctor</TableHead>
+                    <TableHead className="text-center">Staff</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(() => {
+                    const groups = Array.from(new Set(PERMISSION_ROWS.map((r) => r.group)));
+                    return groups.flatMap((group) => {
+                      const rows = PERMISSION_ROWS.filter((r) => r.group === group);
+                      return [
+                        <TableRow key={`group-${group}`}>
+                          <TableCell colSpan={4} className="py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-slate-50">
+                            {group}
+                          </TableCell>
+                        </TableRow>,
+                        ...rows.map(({ action, label }) => (
+                          <TableRow key={action}>
+                            <TableCell className="text-sm">{label}</TableCell>
+                            <TableCell className="text-center">
+                              <input type="checkbox" checked disabled className="h-4 w-4 accent-blue-600 opacity-40 cursor-not-allowed" />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <input
+                                type="checkbox"
+                                checked={(localPerms["doctor"] ?? []).includes(action)}
+                                onChange={() => togglePerm("doctor", action)}
+                                className="h-4 w-4 accent-blue-600 cursor-pointer"
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <input
+                                type="checkbox"
+                                checked={(localPerms["staff"] ?? []).includes(action)}
+                                onChange={() => togglePerm("staff", action)}
+                                className="h-4 w-4 accent-blue-600 cursor-pointer"
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )),
+                      ];
+                    });
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button onClick={savePerms} disabled={permsSaving} size="sm">
+                {permsSaving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</> : "Save Permissions"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 2FA Setup Dialog — QR Code */}
       <Dialog open={twoFAStep === "qr"} onOpenChange={(o) => !o && setTwoFAStep("idle")}>

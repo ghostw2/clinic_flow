@@ -36,6 +36,7 @@ import { formatDateTime, statusColor } from "@/lib/utils";
 import { useI18n } from "@/contexts/i18nContext";
 import { Plus, Calendar, List, X, Download, FileSpreadsheet, FileText } from "lucide-react";
 import type { Appointment, User } from "@/types";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export default function AppointmentsPage() {
   const { data: appointments = [], mutate, isLoading } = useSWR<Appointment[]>(
@@ -56,6 +57,7 @@ export default function AppointmentsPage() {
   const [doctorFilter, setDoctorFilter] = useState("");
 
   const { t } = useI18n();
+  const { can } = usePermissions();
 
   const doctors = users.filter((u) => u.role === "doctor");
   const hasFilters = dateFilter || statusFilter || doctorFilter;
@@ -116,9 +118,11 @@ export default function AppointmentsPage() {
           <h1 className="text-2xl font-bold text-slate-900">{t("appointments.title")}</h1>
           <p className="text-muted-foreground text-sm mt-1">{t("appointments.subtitle")}</p>
         </div>
-        <Button onClick={() => { setEditing(null); setSelectedDate(undefined); setFormOpen(true); }}>
-          <Plus className="h-4 w-4 mr-2" /> {t("appointments.newAppointment")}
-        </Button>
+        {can("appointment.create") && (
+          <Button onClick={() => { setEditing(null); setSelectedDate(undefined); setFormOpen(true); }}>
+            <Plus className="h-4 w-4 mr-2" /> {t("appointments.newAppointment")}
+          </Button>
+        )}
       </div>
 
       <Tabs defaultValue="calendar">
@@ -243,20 +247,24 @@ export default function AppointmentsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDetailOpen(appt)}
-                          >
-                            {t("common.edit")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(appt.id)}
-                          >
-                            {t("common.cancel")}
-                          </Button>
+                          {(can("appointment.update") || can("appointment.update_status")) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDetailOpen(appt)}
+                            >
+                              {t("common.edit")}
+                            </Button>
+                          )}
+                          {can("appointment.delete") && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDelete(appt.id)}
+                            >
+                              {t("common.cancel")}
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))

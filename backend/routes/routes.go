@@ -25,36 +25,36 @@ func Register(r *gin.Engine) {
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(middleware.AuthRequired())
+	protected.Use(middleware.AuthRequired(), middleware.LoadClinicPermissions())
 	{
 		// Dashboard
 		protected.GET("/dashboard/stats", handlers.GetDashboardStats)
 
 		// Appointments
 		protected.GET("/appointments", handlers.GetAppointments)
-		protected.POST("/appointments", handlers.CreateAppointment)
-		protected.PUT("/appointments/:id", handlers.UpdateAppointment)
-		protected.DELETE("/appointments/:id", handlers.DeleteAppointment)
+		protected.POST("/appointments", middleware.RequirePermission("appointment.create"), handlers.CreateAppointment)
+		protected.PUT("/appointments/:id", handlers.UpdateAppointment) // permission checked in handler (status vs full update)
+		protected.DELETE("/appointments/:id", middleware.RequirePermission("appointment.delete"), handlers.DeleteAppointment)
 
 		// Appointment Documents
 		protected.GET("/appointments/:id/documents", handlers.ListDocuments)
-		protected.POST("/appointments/:id/documents", handlers.UploadDocument)
+		protected.POST("/appointments/:id/documents", middleware.RequirePermission("document.upload"), handlers.UploadDocument)
 		protected.GET("/appointments/:id/documents/:docId/file", handlers.DownloadDocument)
-		protected.DELETE("/appointments/:id/documents/:docId", handlers.DeleteDocument)
+		protected.DELETE("/appointments/:id/documents/:docId", middleware.RequirePermission("document.delete"), handlers.DeleteDocument)
 
 		// Patients
 		protected.GET("/patients", handlers.GetPatients)
 		protected.GET("/patients/:id", handlers.GetPatient)
-		protected.POST("/patients", handlers.CreatePatient)
-		protected.PUT("/patients/:id", handlers.UpdatePatient)
-		protected.DELETE("/patients/:id", handlers.DeletePatient)
+		protected.POST("/patients", middleware.RequirePermission("patient.create"), handlers.CreatePatient)
+		protected.PUT("/patients/:id", middleware.RequirePermission("patient.update"), handlers.UpdatePatient)
+		protected.DELETE("/patients/:id", middleware.RequirePermission("patient.delete"), handlers.DeletePatient)
 		protected.GET("/patients/:id/history", handlers.GetPatientHistory)
 
 		// Medical Records
 		protected.GET("/patients/:id/records", handlers.GetMedicalRecords)
-		protected.POST("/patients/:id/records", handlers.CreateMedicalRecord)
-		protected.PUT("/patients/:id/records/:recordId", handlers.UpdateMedicalRecord)
-		protected.DELETE("/patients/:id/records/:recordId", handlers.DeleteMedicalRecord)
+		protected.POST("/patients/:id/records", middleware.RequirePermission("record.create"), handlers.CreateMedicalRecord)
+		protected.PUT("/patients/:id/records/:recordId", middleware.RequirePermission("record.update"), handlers.UpdateMedicalRecord)
+		protected.DELETE("/patients/:id/records/:recordId", middleware.RequirePermission("record.delete"), handlers.DeleteMedicalRecord)
 
 		// Users (admin only)
 		protected.GET("/users", middleware.RequireRole("admin", "staff"), handlers.GetUsers)
@@ -66,6 +66,10 @@ func Register(r *gin.Engine) {
 		// Billing
 		protected.POST("/billing/checkout", handlers.CreateCheckout)
 		protected.POST("/billing/portal", middleware.RequireSubscription(), handlers.CreatePortal)
+
+		// Settings — Permissions
+		protected.GET("/settings/permissions", handlers.GetPermissions)
+		protected.PUT("/settings/permissions", middleware.RequireRole("admin"), handlers.UpdatePermissions)
 	}
 
 	// Billing — public routes
