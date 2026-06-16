@@ -7,7 +7,11 @@ import Link from "next/link";
 import { patientsApi } from "@/lib/api";
 import { downloadCSV, downloadExcel } from "@/lib/export";
 import { PatientCard } from "@/components/PatientCard";
+import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -29,7 +33,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { useI18n } from "@/contexts/i18nContext";
-import { Plus, Search, Download, FileSpreadsheet, FileText, X } from "lucide-react";
+import { Plus, Search, Download, FileSpreadsheet, FileText, X, LayoutGrid, Rows } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 const PAGE_SIZE = 20;
 import { useForm, Controller } from "react-hook-form";
@@ -64,9 +68,24 @@ export default function PatientsPage() {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [view, setView] = useState<"grid" | "table">(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("patients_view") as "grid" | "table") ?? "grid" : "grid"
+  );
+  const [sortBy, setSortBy] = useState<string>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("patients_sort") ?? "newest" : "newest"
+  );
   const { toast } = useToast();
   const { t } = useI18n();
   const { can } = usePermissions();
+
+  const setViewPersisted = (v: "grid" | "table") => {
+    setView(v);
+    localStorage.setItem("patients_view", v);
+  };
+  const setSortPersisted = (v: string) => {
+    setSortBy(v);
+    localStorage.setItem("patients_sort", v);
+  };
 
   const { data, mutate, isLoading } = useSWR<PaginatedPatients>(
     ["patients", search, createdFrom, createdTo, page],
@@ -154,6 +173,13 @@ export default function PatientsPage() {
     { value: "Prefer not to say", label: t("patients.genders.preferNotToSay") },
   ];
 
+  const sortedPatients = [...(data?.patients ?? [])].sort((a, b) => {
+    if (sortBy === "name_asc") return a.name.localeCompare(b.name);
+    if (sortBy === "name_desc") return b.name.localeCompare(a.name);
+    if (sortBy === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // newest
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -163,11 +189,29 @@ export default function PatientsPage() {
             {t("patients.registered", { count: data?.total ?? 0 })}
           </p>
         </div>
-        {can("patient.create") && (
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" /> {t("patients.newPatient")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border border-slate-200 overflow-hidden">
+            <button
+              title="Grid view"
+              onClick={() => setViewPersisted("grid")}
+              className={`px-2 py-1.5 ${view === "grid" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button
+              title="Table view"
+              onClick={() => setViewPersisted("table")}
+              className={`px-2 py-1.5 border-l border-slate-200 ${view === "table" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+            >
+              <Rows className="h-4 w-4" />
+            </button>
+          </div>
+          {can("patient.create") && (
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" /> {t("patients.newPatient")}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Filters + Export */}
@@ -200,6 +244,17 @@ export default function PatientsPage() {
             <X className="h-4 w-4 mr-1" /> {t("common.clear")}
           </Button>
         )}
+        <Select value={sortBy} onValueChange={setSortPersisted}>
+          <SelectTrigger className="w-full sm:w-40">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest first</SelectItem>
+            <SelectItem value="oldest">Oldest first</SelectItem>
+            <SelectItem value="name_asc">Name A → Z</SelectItem>
+            <SelectItem value="name_desc">Name Z → A</SelectItem>
+          </SelectContent>
+        </Select>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" disabled={exporting}>
@@ -218,25 +273,64 @@ export default function PatientsPage() {
         </DropdownMenu>
       </div>
 
-      {/* Patient Grid */}
+      {/* Patient List */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="h-36 bg-slate-100 rounded-xl" />
           ))}
         </div>
-      ) : (
+      ) : view === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data?.patients?.map((patient) => (
+          {sortedPatients.map((patient) => (
             <Link key={patient.id} href={`/patients/${patient.id}`}>
               <PatientCard patient={patient} />
             </Link>
           ))}
-          {data?.patients?.length === 0 && (
+          {sortedPatients.length === 0 && (
             <div className="col-span-full text-center py-12 text-muted-foreground">
               {t("patients.noPatients")}
             </div>
           )}
+        </div>
+      ) : (
+        <div className="rounded-md border bg-white overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Date of Birth</TableHead>
+                <TableHead>Gender</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Blood Type</TableHead>
+                <TableHead>Registered</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedPatients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    {t("patients.noPatients")}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sortedPatients.map((patient) => (
+                  <TableRow
+                    key={patient.id}
+                    className="cursor-pointer hover:bg-slate-50"
+                    onClick={() => window.location.href = `/patients/${patient.id}`}
+                  >
+                    <TableCell className="font-medium">{patient.name}</TableCell>
+                    <TableCell>{patient.dob ? formatDate(patient.dob) : "—"}</TableCell>
+                    <TableCell>{patient.gender ?? "—"}</TableCell>
+                    <TableCell>{patient.phone ?? "—"}</TableCell>
+                    <TableCell>{patient.blood_type ?? "—"}</TableCell>
+                    <TableCell>{formatDate(patient.created_at)}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       )}
 
