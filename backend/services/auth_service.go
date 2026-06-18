@@ -1,6 +1,7 @@
 package services
 
 import (
+	"log"
 	"time"
 
 	"github.com/clinicflow/backend/config"
@@ -95,7 +96,9 @@ func Register(input RegisterInput) (LoginResult, error) {
 	if err := repositories.CreateClinic(&clinic); err != nil {
 		return LoginResult{}, err
 	}
-	_ = SeedDefaultPermissions(clinic.ID)
+	if err := SeedDefaultPermissions(clinic.ID); err != nil {
+		log.Printf("auth: failed to seed permissions for clinic %s: %v", clinic.ID, err)
+	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {

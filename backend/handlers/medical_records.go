@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"errors"
-
 	"github.com/clinicflow/backend/models"
 	"github.com/clinicflow/backend/pkg/response"
 	"github.com/clinicflow/backend/services"
@@ -69,8 +67,7 @@ func GetMedicalRecords(c *gin.Context) {
 	}
 
 	records, err := services.ListMedicalRecords(patientID, clinicID)
-	if err != nil {
-		response.InternalError(c, "record.fetch_failed")
+	if handleErr(c, err) {
 		return
 	}
 
@@ -178,12 +175,7 @@ func UpdateMedicalRecord(c *gin.Context) {
 	}
 
 	record, err := services.UpdateMedicalRecord(recordID.String(), clinicID, input)
-	if err != nil {
-		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "record.not_found")
-			return
-		}
-		response.InternalError(c, "record.update_failed")
+	if handleErr(c, err) {
 		return
 	}
 
@@ -201,12 +193,7 @@ func DeleteMedicalRecord(c *gin.Context) {
 		return
 	}
 
-	if err := services.DeleteMedicalRecord(recordID.String(), clinicID); err != nil {
-		if errors.Is(err, services.ErrNotFound) {
-			response.NotFound(c, "record.not_found")
-			return
-		}
-		response.InternalError(c, "record.delete_failed")
+	if err := services.DeleteMedicalRecord(recordID.String(), clinicID); handleErr(c, err) {
 		return
 	}
 

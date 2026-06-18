@@ -1,6 +1,9 @@
 package repositories
 
 import (
+	"fmt"
+	"log"
+
 	"github.com/clinicflow/backend/database"
 	"github.com/clinicflow/backend/models"
 	"github.com/google/uuid"
@@ -20,7 +23,9 @@ func GetPatients(clinicID uuid.UUID, search, createdFrom, createdTo string, page
 	}
 
 	var total int64
-	query.Model(&models.Patient{}).Count(&total)
+	if err := query.Model(&models.Patient{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 
 	var patients []models.Patient
 	q := query.Order("name ASC")
@@ -71,19 +76,28 @@ func PurgePatient(patientID uuid.UUID, clinicID uuid.UUID) error {
 	}
 	// Hard-delete medical records
 	if err := tx.Unscoped().Where("patient_id = ? AND clinic_id = ?", patientID, clinicID).Delete(&models.MedicalRecord{}).Error; err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback().Error; rbErr != nil {
+			log.Printf("purge: rollback failed: %v (original: %v)", rbErr, err)
+			return fmt.Errorf("rollback failed: %w (original: %w)", rbErr, err)
+		}
 		return err
 	}
 	// Anonymise appointments — clear patient link, keep scheduling record
 	if err := tx.Model(&models.Appointment{}).
 		Where("patient_id = ? AND clinic_id = ?", patientID, clinicID).
 		Updates(map[string]any{"patient_id": nil}).Error; err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback().Error; rbErr != nil {
+			log.Printf("purge: rollback failed: %v (original: %v)", rbErr, err)
+			return fmt.Errorf("rollback failed: %w (original: %w)", rbErr, err)
+		}
 		return err
 	}
 	// Hard-delete patient
 	if err := tx.Unscoped().Where("id = ? AND clinic_id = ?", patientID, clinicID).Delete(&models.Patient{}).Error; err != nil {
-		tx.Rollback()
+		if rbErr := tx.Rollback().Error; rbErr != nil {
+			log.Printf("purge: rollback failed: %v (original: %v)", rbErr, err)
+			return fmt.Errorf("rollback failed: %w (original: %w)", rbErr, err)
+		}
 		return err
 	}
 	return tx.Commit().Error

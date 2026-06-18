@@ -39,9 +39,18 @@ func Load() {
 	expiryHours, _ := strconv.Atoi(getEnv("SESSION_EXPIRY_HOURS", "24"))
 	sessionSecure, _ := strconv.ParseBool(getEnv("SESSION_SECURE", "false"))
 
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		if os.Getenv("GIN_MODE") == "release" {
+			log.Fatal("DATABASE_URL is required in production")
+		}
+		dbURL = "postgres://clinicflow:clinicflow_secret@localhost:5432/clinicflow?sslmode=disable"
+		log.Println("WARNING: DATABASE_URL not set — using local dev default")
+	}
+
 	App = Config{
 		Port:                getEnv("PORT", "8080"),
-		DatabaseURL:         getEnv("DATABASE_URL", "postgres://clinicflow:clinicflow_secret@localhost:5432/clinicflow?sslmode=disable"),
+		DatabaseURL:         dbURL,
 		SessionExpiryHours:  expiryHours,
 		SessionSecure:       sessionSecure,
 		ResendAPIKey:        getEnv("RESEND_API_KEY", ""),

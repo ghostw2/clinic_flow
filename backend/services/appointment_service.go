@@ -73,7 +73,9 @@ func CreateAppointment(clinicID uuid.UUID, input CreateAppointmentInput) (models
 		return models.Appointment{}, err
 	}
 
-	repositories.LoadAppointmentRelations(&appt)
+	if err := repositories.LoadAppointmentRelations(&appt); err != nil {
+		return models.Appointment{}, err
+	}
 	go func() {
 		_ = SendBookingConfirmation(appt)
 		_ = SendSMSBookingConfirmation(appt)
@@ -119,7 +121,9 @@ func UpdateAppointment(id string, clinicID uuid.UUID, input UpdateAppointmentInp
 		return models.Appointment{}, err
 	}
 
-	repositories.LoadAppointmentRelations(&appt)
+	if err := repositories.LoadAppointmentRelations(&appt); err != nil {
+		return models.Appointment{}, err
+	}
 	go func() {
 		switch {
 		case input.Status == "cancelled":

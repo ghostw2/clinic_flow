@@ -76,8 +76,8 @@ func CreateAppointment(appt *models.Appointment) error {
 	return database.DB.Create(appt).Error
 }
 
-func LoadAppointmentRelations(appt *models.Appointment) {
-	database.DB.Preload("Patient").Preload("Doctor").First(appt, "id = ?", appt.ID)
+func LoadAppointmentRelations(appt *models.Appointment) error {
+	return database.DB.Preload("Patient").Preload("Doctor").First(appt, "id = ?", appt.ID).Error
 }
 
 func SaveAppointment(appt *models.Appointment) error {

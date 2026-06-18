@@ -1,21 +1,27 @@
 package routes
 
 import (
+	"time"
+
 	"github.com/clinicflow/backend/handlers"
 	"github.com/clinicflow/backend/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 func Register(r *gin.Engine) {
+	// Disable proxy trust so X-Forwarded-For cannot spoof ClientIP() for rate limiting.
+	// Update to specific proxy IPs (e.g. Fly.io edge) when deploying behind a known proxy.
+	_ = r.SetTrustedProxies(nil)
+
 	api := r.Group("/api")
 
 	// Public routes
 	auth := api.Group("/auth")
 	{
-		auth.POST("/register", handlers.Register)
-		auth.POST("/login", handlers.Login)
+		auth.POST("/register", middleware.RateLimit(3, time.Minute), handlers.Register)
+		auth.POST("/login", middleware.RateLimit(5, time.Minute), handlers.Login)
 		auth.POST("/logout", handlers.Logout)
-		auth.POST("/2fa/verify", handlers.Verify2FA)
+		auth.POST("/2fa/verify", middleware.RateLimit(5, time.Minute), handlers.Verify2FA)
 		auth.POST("/refresh", middleware.AuthRequired(), handlers.Refresh)
 		auth.GET("/me", middleware.AuthRequired(), handlers.Me)
 		auth.POST("/2fa/setup", middleware.AuthRequired(), handlers.Setup2FA)

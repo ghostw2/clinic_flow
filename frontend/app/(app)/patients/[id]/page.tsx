@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import { useParams, useRouter } from "next/navigation";
 import { patientsApi, medicalRecordsApi, usersApi } from "@/lib/api";
 import { useI18n } from "@/contexts/i18nContext";
@@ -22,6 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { MedicalRecordForm, toFormDefaults, type MedicalRecordFormData } from "@/components/MedicalRecordForm";
+import { GdprCard } from "@/components/patient/GdprCard";
+import { AuditTrailTab } from "@/components/patient/AuditTrailTab";
+import { VitalsSection } from "@/components/patient/VitalsSection";
 import { formatDate, formatDateTime, getInitials, statusColor } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import {
@@ -42,10 +45,7 @@ import {
   Stethoscope,
   Pencil,
   Trash2,
-  Download,
-  ShieldAlert,
   History,
-  CheckCircle2,
 } from "lucide-react";
 import type { Patient, PatientHistory, MedicalRecord, User as UserType, AuditLog } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -63,19 +63,11 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
   );
 }
 
-function VitalBadge({ label, value }: { label: string; value?: string }) {
-  if (!value) return null;
-  return (
-    <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-center">
-      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
-      <p className="text-sm font-semibold text-slate-800">{value}</p>
-    </div>
-  );
-}
 
 export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const { mutate: globalMutate } = useSWRConfig();
   const { toast } = useToast();
   const { t } = useI18n();
   const { user } = useAuth();
@@ -186,7 +178,7 @@ export default function PatientDetailPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `patient_${patient?.name ?? id}_export.json`;
+      a.download = `patient_${id}_export.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -199,6 +191,10 @@ export default function PatientDetailPage() {
     try {
       await patientsApi.purge(id);
       toast({ title: "Patient permanently deleted" });
+      // Invalidate both the individual patient cache and the list so stale data
+      // doesn't reappear if the user navigates back or returns to the list.
+      await globalMutate(`patients/${id}`, undefined, { revalidate: false });
+      await globalMutate("patients", undefined, { revalidate: false });
       router.replace("/patients");
     } catch {
       toast({ title: "Deletion failed", variant: "destructive" });
@@ -331,38 +327,11 @@ export default function PatientDetailPage() {
 
           {/* GDPR card — admin only */}
           {isAdmin && (
-            <Card className="border-amber-200 bg-amber-50/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold text-amber-800 uppercase tracking-wide flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4" /> GDPR / Data Privacy
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2">
-                  {patient.consent_given_at ? (
-                    <Badge className="bg-green-100 text-green-700 border-green-200" variant="outline">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Consent recorded {formatDate(patient.consent_given_at)}
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-amber-100 text-amber-700 border-amber-200" variant="outline">
-                      No consent on file
-                    </Badge>
-                  )}
-                  {patient.consent_notes && (
-                    <span className="text-xs text-muted-foreground">{patient.consent_notes}</span>
-                  )}
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <Button variant="outline" size="sm" onClick={handleExport}>
-                    <Download className="h-4 w-4 mr-1.5" /> Export Data
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => setPurgeDialogOpen(true)}>
-                    <Trash2 className="h-4 w-4 mr-1.5" /> Permanently Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <GdprCard
+              patient={patient}
+              onExport={handleExport}
+              onPurgeClick={() => setPurgeDialogOpen(true)}
+            />
           )}
         </TabsContent>
 
@@ -466,23 +435,8 @@ export default function PatientDetailPage() {
                       )}
                     </div>
 
-                    {record.vital_signs && Object.values(record.vital_signs).some(Boolean) && (
-                      <>
-                        <Separator />
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                            {t("patients.detail.vitalSigns")}
-                          </p>
-                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                            <VitalBadge label={t("records.bloodPressure")} value={record.vital_signs.blood_pressure} />
-                            <VitalBadge label={t("records.temperature")} value={record.vital_signs.temperature} />
-                            <VitalBadge label={t("records.heartRate")} value={record.vital_signs.heart_rate} />
-                            <VitalBadge label={t("records.weight")} value={record.vital_signs.weight} />
-                            <VitalBadge label={t("records.height")} value={record.vital_signs.height} />
-                            <VitalBadge label={t("patients.detail.oxygenSatShort")} value={record.vital_signs.oxygen_saturation} />
-                          </div>
-                        </div>
-                      </>
+                    {record.vital_signs && (
+                      <VitalsSection vitalSigns={record.vital_signs} t={t} />
                     )}
 
                     {record.notes && (
@@ -547,40 +501,7 @@ export default function PatientDetailPage() {
         {/* ── Audit Trail Tab ───────────────────────────────────── */}
         {isAdminOrDoctor && (
           <TabsContent value="audit" className="mt-4">
-            <Card>
-              <CardContent className="pt-4">
-                {auditLogs.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No audit events yet.</p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Who</TableHead>
-                          <TableHead>Action</TableHead>
-                          <TableHead>When</TableHead>
-                          <TableHead>IP</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {auditLogs.map((log) => (
-                          <TableRow key={log.id}>
-                            <TableCell className="font-medium">{log.user_name}</TableCell>
-                            <TableCell>
-                              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{log.action}</code>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {new Date(log.created_at).toLocaleString()}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-xs">{log.ip_address || "—"}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <AuditTrailTab logs={auditLogs} />
           </TabsContent>
         )}
       </Tabs>

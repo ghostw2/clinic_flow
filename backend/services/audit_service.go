@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/clinicflow/backend/models"
 	"github.com/clinicflow/backend/repositories"
@@ -24,9 +25,11 @@ func LogAudit(input AuditInput) {
 	if len(input.Details) > 0 {
 		if b, err := json.Marshal(input.Details); err == nil {
 			details = string(b)
+		} else {
+			log.Printf("audit: marshal details failed for action %q: %v", input.Action, err)
 		}
 	}
-	log := &models.AuditLog{
+	entry := &models.AuditLog{
 		ClinicID:     input.ClinicID,
 		UserID:       input.UserID,
 		UserName:     input.UserName,
@@ -36,5 +39,7 @@ func LogAudit(input AuditInput) {
 		Details:      details,
 		IPAddress:    input.IPAddress,
 	}
-	_ = repositories.CreateAuditLog(log)
+	if err := repositories.CreateAuditLog(entry); err != nil {
+		log.Printf("audit: write failed for action %q resource %s: %v", input.Action, input.ResourceID, err)
+	}
 }
