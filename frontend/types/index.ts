@@ -40,6 +40,8 @@ export interface Patient {
   address?: string;
   insurance?: string;
   occupation?: string;
+  consent_given_at?: string;
+  consent_notes?: string;
   appointments?: Appointment[];
   medical_records?: MedicalRecord[];
 }
@@ -152,3 +154,16 @@ export type PermissionAction =
   | "document.delete";
 
 export type ClinicPermissions = Record<string, PermissionAction[]>;
+
+export interface AuditLog {
+  id: string;
+  clinic_id: string;
+  user_id: string;
+  user_name: string;
+  action: string;
+  resource_type: string;
+  resource_id: string;
+  details?: string;
+  ip_address?: string;
+  created_at: string;
+}

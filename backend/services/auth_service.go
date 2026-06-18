@@ -128,6 +128,7 @@ func createFullSession(user models.User) (models.Session, error) {
 		UserID:    user.ID,
 		ClinicID:  user.ClinicID,
 		Role:      string(user.Role),
+		UserName:  user.Name,
 		ExpiresAt: time.Now().Add(expiry),
 	}
 	return session, repositories.CreateSession(&session)

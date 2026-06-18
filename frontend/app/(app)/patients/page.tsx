@@ -56,6 +56,8 @@ const schema = z.object({
   address: z.string().optional(),
   insurance: z.string().optional(),
   occupation: z.string().optional(),
+  consent_given_at: z.string().optional(),
+  consent_notes: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -372,6 +374,7 @@ export default function PatientsPage() {
                 <TabsTrigger value="basic" className="flex-1">{t("patients.form.basicInfo")}</TabsTrigger>
                 <TabsTrigger value="medical" className="flex-1">{t("patients.form.medicalProfile")}</TabsTrigger>
                 <TabsTrigger value="emergency" className="flex-1">{t("patients.form.emergency")}</TabsTrigger>
+                <TabsTrigger value="consent" className="flex-1">Consent</TabsTrigger>
               </TabsList>
 
               {/* Basic Info */}
@@ -492,6 +495,26 @@ export default function PatientsPage() {
                 <div className="space-y-2">
                   <Label htmlFor="emergency_contact_phone">{t("patients.form.emergencyContactPhone")}</Label>
                   <Input id="emergency_contact_phone" {...register("emergency_contact_phone")} />
+                </div>
+              </TabsContent>
+
+              {/* GDPR Consent */}
+              <TabsContent value="consent" className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Record when and how the patient gave consent to store their personal health data (GDPR Art. 7).
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="consent_given_at">Consent given on</Label>
+                  <Input id="consent_given_at" type="date" {...register("consent_given_at")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="consent_notes">Consent notes</Label>
+                  <Textarea
+                    id="consent_notes"
+                    rows={3}
+                    placeholder="e.g. Verbal consent, signed paper form #42, etc."
+                    {...register("consent_notes")}
+                  />
                 </div>
               </TabsContent>
             </Tabs>

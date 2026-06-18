@@ -24,6 +24,8 @@ type CreatePatientInput struct {
 	Address               string
 	Insurance             string
 	Occupation            string
+	ConsentGivenAt        string
+	ConsentNotes          string
 }
 
 type UpdatePatientInput struct {
@@ -41,6 +43,8 @@ type UpdatePatientInput struct {
 	Address               string
 	Insurance             string
 	Occupation            string
+	ConsentGivenAt        string
+	ConsentNotes          string
 }
 
 type ListPatientsInput struct {
@@ -86,12 +90,20 @@ func CreatePatient(clinicID uuid.UUID, input CreatePatientInput) (models.Patient
 		Address:               input.Address,
 		Insurance:             input.Insurance,
 		Occupation:            input.Occupation,
+		ConsentNotes:          input.ConsentNotes,
 	}
 
 	if input.DOB != "" {
 		dob, err := time.Parse("2006-01-02", input.DOB)
 		if err == nil {
 			patient.DOB = &dob
+		}
+	}
+
+	if input.ConsentGivenAt != "" {
+		t, err := time.Parse("2006-01-02", input.ConsentGivenAt)
+		if err == nil {
+			patient.ConsentGivenAt = &t
 		}
 	}
 
@@ -154,6 +166,15 @@ func UpdatePatient(id string, clinicID uuid.UUID, input UpdatePatientInput) (mod
 	}
 	if input.Occupation != "" {
 		patient.Occupation = input.Occupation
+	}
+	if input.ConsentNotes != "" {
+		patient.ConsentNotes = input.ConsentNotes
+	}
+	if input.ConsentGivenAt != "" {
+		t, err := time.Parse("2006-01-02", input.ConsentGivenAt)
+		if err == nil {
+			patient.ConsentGivenAt = &t
+		}
 	}
 
 	if err := repositories.SavePatient(&patient); err != nil {

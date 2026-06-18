@@ -49,6 +49,9 @@ func Register(r *gin.Engine) {
 		protected.PUT("/patients/:id", middleware.RequirePermission("patient.update"), handlers.UpdatePatient)
 		protected.DELETE("/patients/:id", middleware.RequirePermission("patient.delete"), handlers.DeletePatient)
 		protected.GET("/patients/:id/history", handlers.GetPatientHistory)
+		protected.GET("/patients/:id/export", middleware.RequireRole("admin"), handlers.ExportPatient)
+		protected.DELETE("/patients/:id/purge", middleware.RequireRole("admin"), handlers.PurgePatient)
+		protected.GET("/patients/:id/audit", middleware.RequireRole("admin", "doctor"), handlers.GetPatientAuditLog)
 
 		// Medical Records
 		protected.GET("/patients/:id/records", handlers.GetMedicalRecords)

@@ -10,6 +10,22 @@ import (
 	"github.com/google/uuid"
 )
 
+func auditRecord(c *gin.Context, action string, recordID uuid.UUID) {
+	clinicID := c.MustGet("clinic_id").(uuid.UUID)
+	userID := c.MustGet("user_id").(uuid.UUID)
+	userName, _ := c.Get("user_name")
+	name, _ := userName.(string)
+	services.LogAudit(services.AuditInput{
+		ClinicID:     clinicID,
+		UserID:       userID,
+		UserName:     name,
+		Action:       action,
+		ResourceType: "medical_record",
+		ResourceID:   recordID,
+		IPAddress:    c.ClientIP(),
+	})
+}
+
 type VitalSignsRequest struct {
 	BloodPressure string `json:"blood_pressure"`
 	Temperature   string `json:"temperature"`
@@ -121,6 +137,7 @@ func CreateMedicalRecord(c *gin.Context) {
 		return
 	}
 
+	auditRecord(c, "record.created", record.ID)
 	response.Created(c, record.ToResponse())
 }
 
@@ -170,6 +187,7 @@ func UpdateMedicalRecord(c *gin.Context) {
 		return
 	}
 
+	auditRecord(c, "record.updated", recordID)
 	response.OK(c, record.ToResponse())
 }
 
@@ -192,5 +210,6 @@ func DeleteMedicalRecord(c *gin.Context) {
 		return
 	}
 
+	auditRecord(c, "record.deleted", recordID)
 	response.Message(c, "record deleted")
 }

@@ -13,6 +13,7 @@ import type {
   PatientHistory,
   VitalSigns,
   ClinicPermissions,
+  AuditLog,
 } from "@/types";
 
 // All requests go through Next.js proxy (/api/* → backend), keeping cookies same-origin
@@ -107,6 +108,8 @@ type PatientPayload = Partial<{
   address: string;
   insurance: string;
   occupation: string;
+  consent_given_at: string;
+  consent_notes: string;
 }>;
 
 export const patientsApi = {
@@ -124,6 +127,10 @@ export const patientsApi = {
     api.put<Patient>(`/patients/${id}`, data),
 
   remove: (id: string) => api.delete(`/patients/${id}`),
+
+  export: (id: string) => api.get<Blob>(`/patients/${id}/export`, { responseType: "blob" }),
+  purge: (id: string) => api.delete(`/patients/${id}/purge`),
+  audit: (id: string) => api.get<{ logs: AuditLog[] }>(`/patients/${id}/audit`),
 };
 
 // ── Medical Records ───────────────────────────────────────────────────────────

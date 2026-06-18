@@ -30,6 +30,10 @@ type Patient struct {
 	Insurance              string `json:"insurance"`
 	Occupation             string `json:"occupation"`
 
+	// GDPR consent
+	ConsentGivenAt *time.Time `json:"consent_given_at" gorm:"column:consent_given_at"`
+	ConsentNotes   string     `json:"consent_notes" gorm:"column:consent_notes"`
+
 	Appointments   []Appointment   `json:"appointments,omitempty" gorm:"foreignKey:PatientID"`
 	MedicalRecords []MedicalRecord `json:"medical_records,omitempty" gorm:"foreignKey:PatientID"`
 }
@@ -57,6 +61,8 @@ type PatientResponse struct {
 	Address               string                  `json:"address,omitempty"`
 	Insurance             string                  `json:"insurance,omitempty"`
 	Occupation            string                  `json:"occupation,omitempty"`
+	ConsentGivenAt        *time.Time              `json:"consent_given_at,omitempty"`
+	ConsentNotes          string                  `json:"consent_notes,omitempty"`
 	CreatedAt             time.Time               `json:"created_at"`
 	UpdatedAt             time.Time               `json:"updated_at"`
 	Appointments          []AppointmentResponse   `json:"appointments,omitempty"`
@@ -80,6 +86,8 @@ func (p Patient) ToResponse() PatientResponse {
 		Address:               p.Address,
 		Insurance:             p.Insurance,
 		Occupation:            p.Occupation,
+		ConsentGivenAt:        p.ConsentGivenAt,
+		ConsentNotes:          p.ConsentNotes,
 		CreatedAt:             p.CreatedAt,
 		UpdatedAt:             p.UpdatedAt,
 	}

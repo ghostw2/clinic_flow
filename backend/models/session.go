@@ -11,6 +11,7 @@ type Session struct {
 	UserID    uuid.UUID `json:"-" gorm:"type:uuid;not null;index"`
 	ClinicID  uuid.UUID `json:"-" gorm:"type:uuid;not null"`
 	Role      string    `json:"-" gorm:"not null"`
+	UserName  string    `json:"-" gorm:"not null;default:''"`
 	ExpiresAt time.Time `json:"-" gorm:"not null;index"`
 	CreatedAt time.Time `json:"-"`
 }

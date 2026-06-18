@@ -5,11 +5,12 @@ import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
 import { patientsApi, medicalRecordsApi, usersApi } from "@/lib/api";
 import { useI18n } from "@/contexts/i18nContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -41,8 +42,12 @@ import {
   Stethoscope,
   Pencil,
   Trash2,
+  Download,
+  ShieldAlert,
+  History,
+  CheckCircle2,
 } from "lucide-react";
-import type { Patient, PatientHistory, MedicalRecord, User as UserType } from "@/types";
+import type { Patient, PatientHistory, MedicalRecord, User as UserType, AuditLog } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
@@ -73,11 +78,17 @@ export default function PatientDetailPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { t } = useI18n();
+  const { user } = useAuth();
 
   const [recordDialogOpen, setRecordDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MedicalRecord | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
   const { can } = usePermissions();
+
+  const isAdmin = user?.role === "admin";
+  const isAdminOrDoctor = user?.role === "admin" || user?.role === "doctor";
 
   const { data: patient, isLoading: patientLoading } = useSWR<Patient>(
     id ? `patients/${id}` : null,
@@ -94,7 +105,13 @@ export default function PatientDetailPage() {
     () => usersApi.list({ role: "doctor" }).then((r) => r.data)
   );
 
+  const { data: auditData } = useSWR<{ logs: AuditLog[] }>(
+    id && isAdminOrDoctor ? `patients/${id}/audit` : null,
+    () => patientsApi.audit(id).then((r) => r.data)
+  );
+
   const records = history?.records ?? [];
+  const auditLogs = auditData?.logs ?? [];
 
   const openNewRecord = () => {
     setEditingRecord(null);
@@ -162,6 +179,34 @@ export default function PatientDetailPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await patientsApi.export(id);
+      const blob = new Blob([res.data as unknown as BlobPart], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `patient_${patient?.name ?? id}_export.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Export failed", variant: "destructive" });
+    }
+  };
+
+  const handlePurge = async () => {
+    setIsPurging(true);
+    try {
+      await patientsApi.purge(id);
+      toast({ title: "Patient permanently deleted" });
+      router.replace("/patients");
+    } catch {
+      toast({ title: "Deletion failed", variant: "destructive" });
+      setIsPurging(false);
+      setPurgeDialogOpen(false);
+    }
+  };
+
   if (patientLoading) {
     return (
       <div className="animate-pulse space-y-4 max-w-5xl">
@@ -216,6 +261,11 @@ export default function PatientDetailPage() {
           <TabsTrigger value="appointments" className="gap-2">
             <Calendar className="h-4 w-4" /> {t("patients.detail.tabAppointments")}
           </TabsTrigger>
+          {isAdminOrDoctor && (
+            <TabsTrigger value="audit" className="gap-2">
+              <History className="h-4 w-4" /> Audit Trail
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ── Profile Tab ───────────────────────────────────────── */}
@@ -278,6 +328,42 @@ export default function PatientDetailPage() {
               </Card>
             )}
           </div>
+
+          {/* GDPR card — admin only */}
+          {isAdmin && (
+            <Card className="border-amber-200 bg-amber-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-amber-800 uppercase tracking-wide flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4" /> GDPR / Data Privacy
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2">
+                  {patient.consent_given_at ? (
+                    <Badge className="bg-green-100 text-green-700 border-green-200" variant="outline">
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Consent recorded {formatDate(patient.consent_given_at)}
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-100 text-amber-700 border-amber-200" variant="outline">
+                      No consent on file
+                    </Badge>
+                  )}
+                  {patient.consent_notes && (
+                    <span className="text-xs text-muted-foreground">{patient.consent_notes}</span>
+                  )}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={handleExport}>
+                    <Download className="h-4 w-4 mr-1.5" /> Export Data
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => setPurgeDialogOpen(true)}>
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Permanently Delete
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ── Visit History Tab ─────────────────────────────────── */}
@@ -457,7 +543,67 @@ export default function PatientDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ── Audit Trail Tab ───────────────────────────────────── */}
+        {isAdminOrDoctor && (
+          <TabsContent value="audit" className="mt-4">
+            <Card>
+              <CardContent className="pt-4">
+                {auditLogs.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No audit events yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Who</TableHead>
+                          <TableHead>Action</TableHead>
+                          <TableHead>When</TableHead>
+                          <TableHead>IP</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {auditLogs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell className="font-medium">{log.user_name}</TableCell>
+                            <TableCell>
+                              <code className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{log.action}</code>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {new Date(log.created_at).toLocaleString()}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{log.ip_address || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
       </Tabs>
+
+      {/* Purge Confirmation Dialog */}
+      <Dialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Permanently Delete Patient</DialogTitle>
+            <DialogDescription>
+              This will erase all medical records and personal data for <strong>{patient?.name}</strong> permanently. Appointments will be anonymised. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPurgeDialogOpen(false)} disabled={isPurging}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handlePurge} disabled={isPurging}>
+              {isPurging ? "Deleting…" : "Delete permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Medical Record Dialog */}
       <Dialog open={recordDialogOpen} onOpenChange={setRecordDialogOpen}>

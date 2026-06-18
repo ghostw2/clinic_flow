@@ -27,6 +27,7 @@ func AuthRequired() gin.HandlerFunc {
 		c.Set("user_id", session.UserID)
 		c.Set("clinic_id", session.ClinicID)
 		c.Set("role", session.Role)
+		c.Set("user_name", session.UserName)
 		c.Next()
 	}
 }

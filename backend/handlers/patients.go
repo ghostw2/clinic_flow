@@ -2,9 +2,12 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/clinicflow/backend/models"
 	"github.com/clinicflow/backend/pkg/response"
+	"github.com/clinicflow/backend/repositories"
 	"github.com/clinicflow/backend/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -33,6 +36,8 @@ type CreatePatientRequest struct {
 	Address               string `json:"address"`
 	Insurance             string `json:"insurance"`
 	Occupation            string `json:"occupation"`
+	ConsentGivenAt        string `json:"consent_given_at"`
+	ConsentNotes          string `json:"consent_notes"`
 }
 
 type UpdatePatientRequest struct {
@@ -50,6 +55,8 @@ type UpdatePatientRequest struct {
 	Address               string `json:"address"`
 	Insurance             string `json:"insurance"`
 	Occupation            string `json:"occupation"`
+	ConsentGivenAt        string `json:"consent_given_at"`
+	ConsentNotes          string `json:"consent_notes"`
 }
 
 // GET /api/patients
@@ -113,7 +120,7 @@ func CreatePatient(c *gin.Context) {
 		return
 	}
 
-	patient, err := services.CreatePatient(clinicID, services.CreatePatientInput{
+	input := services.CreatePatientInput{
 		Name:                  req.Name,
 		DOB:                   req.DOB,
 		Phone:                 req.Phone,
@@ -128,7 +135,11 @@ func CreatePatient(c *gin.Context) {
 		Address:               req.Address,
 		Insurance:             req.Insurance,
 		Occupation:            req.Occupation,
-	})
+		ConsentGivenAt:        req.ConsentGivenAt,
+		ConsentNotes:          req.ConsentNotes,
+	}
+
+	patient, err := services.CreatePatient(clinicID, input)
 	if err != nil {
 		response.InternalError(c, "patient.create_failed")
 		return
@@ -140,6 +151,8 @@ func CreatePatient(c *gin.Context) {
 // PUT /api/patients/:id
 func UpdatePatient(c *gin.Context) {
 	clinicID := c.MustGet("clinic_id").(uuid.UUID)
+	userID := c.MustGet("user_id").(uuid.UUID)
+	userName, _ := c.Get("user_name")
 
 	patientID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
@@ -168,6 +181,8 @@ func UpdatePatient(c *gin.Context) {
 		Address:               req.Address,
 		Insurance:             req.Insurance,
 		Occupation:            req.Occupation,
+		ConsentGivenAt:        req.ConsentGivenAt,
+		ConsentNotes:          req.ConsentNotes,
 	})
 	if err != nil {
 		if errors.Is(err, services.ErrNotFound) {
@@ -177,6 +192,17 @@ func UpdatePatient(c *gin.Context) {
 		response.InternalError(c, "patient.update_failed")
 		return
 	}
+
+	name, _ := userName.(string)
+	services.LogAudit(services.AuditInput{
+		ClinicID:     clinicID,
+		UserID:       userID,
+		UserName:     name,
+		Action:       "patient.updated",
+		ResourceType: "patient",
+		ResourceID:   patientID,
+		IPAddress:    c.ClientIP(),
+	})
 
 	response.OK(c, patient.ToResponse())
 }
@@ -225,4 +251,77 @@ func GetPatientHistory(c *gin.Context) {
 
 	resp := history.ToResponse()
 	response.OK(c, gin.H{"records": resp.Records})
+}
+
+// GET /api/patients/:id/export
+func ExportPatient(c *gin.Context) {
+	clinicID := c.MustGet("clinic_id").(uuid.UUID)
+	userID := c.MustGet("user_id").(uuid.UUID)
+	userName, _ := c.Get("user_name")
+
+	patientID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "validation.invalid_id")
+		return
+	}
+
+	patient, err := repositories.GetPatientWithRecordsAndAppointments(patientID.String(), clinicID)
+	if err != nil {
+		response.NotFound(c, "patient.not_found")
+		return
+	}
+
+	export := gin.H{
+		"exported_at":     time.Now().UTC(),
+		"exported_by":     userName,
+		"patient":         patient.ToResponse(),
+		"medical_records": models.MedicalRecordsToResponse(patient.MedicalRecords),
+		"appointments":    models.AppointmentsToResponse(patient.Appointments),
+	}
+
+	name, _ := userName.(string)
+	services.LogAudit(services.AuditInput{
+		ClinicID:     clinicID,
+		UserID:       userID,
+		UserName:     name,
+		Action:       "patient.exported",
+		ResourceType: "patient",
+		ResourceID:   patientID,
+		IPAddress:    c.ClientIP(),
+	})
+
+	filename := fmt.Sprintf("patient_%s_export.json", patient.Name)
+	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	c.JSON(200, export)
+}
+
+// DELETE /api/patients/:id/purge
+func PurgePatient(c *gin.Context) {
+	clinicID := c.MustGet("clinic_id").(uuid.UUID)
+	userID := c.MustGet("user_id").(uuid.UUID)
+	userName, _ := c.Get("user_name")
+
+	patientID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.BadRequest(c, "validation.invalid_id")
+		return
+	}
+
+	name, _ := userName.(string)
+	services.LogAudit(services.AuditInput{
+		ClinicID:     clinicID,
+		UserID:       userID,
+		UserName:     name,
+		Action:       "patient.purged",
+		ResourceType: "patient",
+		ResourceID:   patientID,
+		IPAddress:    c.ClientIP(),
+	})
+
+	if err := repositories.PurgePatient(patientID, clinicID); err != nil {
+		response.InternalError(c, "patient.purge_failed")
+		return
+	}
+
+	response.Message(c, "patient permanently deleted")
 }

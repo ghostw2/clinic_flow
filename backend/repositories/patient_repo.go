@@ -64,6 +64,43 @@ func DeletePatient(patient *models.Patient) error {
 	return database.DB.Delete(patient).Error
 }
 
+func PurgePatient(patientID uuid.UUID, clinicID uuid.UUID) error {
+	tx := database.DB.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	// Hard-delete medical records
+	if err := tx.Unscoped().Where("patient_id = ? AND clinic_id = ?", patientID, clinicID).Delete(&models.MedicalRecord{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Anonymise appointments — clear patient link, keep scheduling record
+	if err := tx.Model(&models.Appointment{}).
+		Where("patient_id = ? AND clinic_id = ?", patientID, clinicID).
+		Updates(map[string]any{"patient_id": nil}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	// Hard-delete patient
+	if err := tx.Unscoped().Where("id = ? AND clinic_id = ?", patientID, clinicID).Delete(&models.Patient{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit().Error
+}
+
+func GetPatientWithRecordsAndAppointments(id string, clinicID uuid.UUID) (models.Patient, error) {
+	var patient models.Patient
+	err := database.DB.
+		Preload("MedicalRecords", "deleted_at IS NULL").
+		Preload("MedicalRecords.Doctor").
+		Preload("Appointments", "deleted_at IS NULL").
+		Preload("Appointments.Doctor").
+		Where("id = ? AND clinic_id = ? AND deleted_at IS NULL", id, clinicID).
+		First(&patient).Error
+	return patient, err
+}
+
 func CountPatients(clinicID uuid.UUID) (int64, error) {
 	var count int64
 	err := database.DB.Model(&models.Patient{}).
