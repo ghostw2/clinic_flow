@@ -10,7 +10,7 @@ interface PatientCardProps {
 
 export function PatientCard({ patient }: PatientCardProps) {
   return (
-    <Card className="hover:shadow-md transition-shadow cursor-pointer">
+    <Card className="border border-border hover:border-primary/40 transition-colors cursor-pointer">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <Avatar className="h-10 w-10 flex-shrink-0">

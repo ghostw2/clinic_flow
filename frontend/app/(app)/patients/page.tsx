@@ -33,7 +33,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
 import { useI18n } from "@/contexts/i18nContext";
-import { Plus, Search, Download, FileSpreadsheet, FileText, X, LayoutGrid, Rows } from "lucide-react";
+import { Plus, Search, Download, FileSpreadsheet, FileText, X, LayoutGrid, Rows, Users, SearchX } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 const PAGE_SIZE = 20;
 import { useForm, Controller } from "react-hook-form";
@@ -277,9 +279,9 @@ export default function PatientsPage() {
 
       {/* Patient List */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-36 bg-slate-100 rounded-xl" />
+            <Skeleton key={i} className="h-36" />
           ))}
         </div>
       ) : view === "grid" ? (
@@ -290,8 +292,13 @@ export default function PatientsPage() {
             </Link>
           ))}
           {sortedPatients.length === 0 && (
-            <div className="col-span-full text-center py-12 text-muted-foreground">
-              {t("patients.noPatients")}
+            <div className="col-span-full">
+              <EmptyState
+                icon={hasFilters ? SearchX : Users}
+                title={hasFilters ? "No matches" : t("patients.noPatients")}
+                description={hasFilters ? "Try a different search or clear the filters." : "Add your first patient to get started."}
+                action={!hasFilters && can("patient.create") ? { label: t("patients.newPatient"), onClick: () => setFormOpen(true) } : undefined}
+              />
             </div>
           )}
         </div>

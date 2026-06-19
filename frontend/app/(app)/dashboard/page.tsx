@@ -8,9 +8,10 @@ import { useI18n } from "@/contexts/i18nContext";
 import { useToast } from "@/components/ui/use-toast";
 import { StatsCard } from "@/components/StatsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatDateTime, statusColor } from "@/lib/utils";
 import { Calendar, Users, Clock, AlertCircle } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { AppointmentDayCard } from "@/components/AppointmentDayCard";
+import { doctorColor } from "@/components/DayScheduleView";
 import type { DashboardStats } from "@/types";
 
 const fetcher = () => dashboardApi.stats().then((r) => r.data);
@@ -99,26 +100,19 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           {!data?.upcoming?.length ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              {t("dashboard.noUpcoming")}
-            </p>
+            <EmptyState
+              icon={Calendar}
+              title={t("dashboard.noUpcoming")}
+              description="Schedule an appointment to see it here."
+            />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {data.upcoming.map((appt) => (
-                <div
+                <AppointmentDayCard
                   key={appt.id}
-                  className="flex items-center justify-between py-2 border-b last:border-0"
-                >
-                  <div>
-                    <p className="font-medium text-sm">{appt.patient?.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("common.dr")} {appt.doctor?.name} · {formatDateTime(appt.datetime)}
-                    </p>
-                  </div>
-                  <Badge className={statusColor(appt.status)} variant="outline">
-                    {t(`appointments.statuses.${appt.status}`)}
-                  </Badge>
-                </div>
+                  appointment={appt}
+                  doctorColor={doctorColor(appt.doctor_id)}
+                />
               ))}
             </div>
           )}

@@ -97,10 +97,13 @@ export function AppointmentForm({ open, appointment, defaultDate, onClose, onSav
       }
       onSaved();
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
-        "Operation failed";
-      toast({ title: msg, variant: "destructive" });
+      const errPayload = (err as { response?: { data?: { error?: { code?: string } | string } } })
+        ?.response?.data?.error;
+      const code = typeof errPayload === "string" ? errPayload : errPayload?.code;
+      const codeMessages: Record<string, string> = {
+        appointment_conflict: "This time slot overlaps with an existing appointment.",
+      };
+      toast({ title: codeMessages[code ?? ""] ?? "Operation failed", variant: "destructive" });
     }
   };
 

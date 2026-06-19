@@ -34,7 +34,9 @@ import {
 } from "@/components/ui/table";
 import { formatDateTime, statusColor } from "@/lib/utils";
 import { useI18n } from "@/contexts/i18nContext";
-import { Plus, Calendar, List, X, Download, FileSpreadsheet, FileText, LayoutList, TableIcon } from "lucide-react";
+import { Plus, Calendar, List, X, Download, FileSpreadsheet, FileText, LayoutList, TableIcon, CalendarOff, CalendarDays } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
+import { DayScheduleView } from "@/components/DayScheduleView";
 import type { Appointment, User } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -59,15 +61,16 @@ export default function AppointmentsPage() {
   const { t } = useI18n();
   const { can } = usePermissions();
 
-  const [listView, setListView] = useState<"table" | "timeline">(() =>
+  const [listView, setListView] = useState<"table" | "timeline" | "day">(() =>
     typeof window !== "undefined"
-      ? (localStorage.getItem("appointments_list_view") as "table" | "timeline") ?? "table"
+      ? (localStorage.getItem("appointments_list_view") as "table" | "timeline" | "day") ?? "table"
       : "table"
   );
-  const setListViewPersisted = (v: "table" | "timeline") => {
+  const setListViewPersisted = (v: "table" | "timeline" | "day") => {
     setListView(v);
     localStorage.setItem("appointments_list_view", v);
   };
+  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
 
   const doctors = users.filter((u) => u.role === "doctor");
   const hasFilters = dateFilter || statusFilter || doctorFilter;
@@ -175,6 +178,13 @@ export default function AppointmentsPage() {
               >
                 <LayoutList className="h-4 w-4" />
               </button>
+              <button
+                title="Day view"
+                onClick={() => setListViewPersisted("day")}
+                className={`px-2 py-1.5 border-l border-slate-200 ${listView === "day" ? "bg-slate-900 text-white" : "bg-white text-slate-500 hover:bg-slate-50"}`}
+              >
+                <CalendarDays className="h-4 w-4" />
+              </button>
             </div>
             <Input
               type="date"
@@ -232,7 +242,15 @@ export default function AppointmentsPage() {
             </DropdownMenu>
           </div>
 
-          {isLoading ? (
+          {listView === "day" ? (
+            <DayScheduleView
+              appointments={appointments}
+              selectedDate={selectedDay}
+              onDateChange={setSelectedDay}
+              onCardClick={handleDetailOpen}
+              isLoading={isLoading}
+            />
+          ) : isLoading ? (
             <div className="animate-pulse space-y-2">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-12 bg-slate-100 rounded" />
@@ -291,7 +309,11 @@ export default function AppointmentsPage() {
           ) : (
             /* Timeline view — grouped by date */
             filtered.length === 0 ? (
-              <p className="text-center text-muted-foreground py-10">{t("appointments.noAppointments")}</p>
+              <EmptyState
+                icon={CalendarOff}
+                title={t("appointments.noAppointments")}
+                description="No appointments match the current filters."
+              />
             ) : (
               <div className="space-y-6">
                 {Object.entries(

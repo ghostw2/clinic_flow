@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Download, ShieldAlert, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, ShieldCheck, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import type { Patient } from "@/types";
 
@@ -15,10 +15,10 @@ interface GdprCardProps {
 
 export function GdprCard({ patient, onExport, onPurgeClick }: GdprCardProps) {
   return (
-    <Card className="border-amber-200 bg-amber-50/50">
+    <Card className="border border-border bg-card">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-amber-800 uppercase tracking-wide flex items-center gap-2">
-          <ShieldAlert className="h-4 w-4" /> GDPR / Data Privacy
+        <CardTitle className="text-sm font-semibold text-foreground uppercase tracking-wide flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" /> GDPR / Data Privacy
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">

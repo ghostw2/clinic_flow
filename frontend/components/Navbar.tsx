@@ -37,7 +37,7 @@ export function Navbar({ onOpenSidebar }: NavbarProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      <span className="text-sm text-muted-foreground hidden sm:block ml-auto">
+      <span className="text-sm text-muted-foreground hidden sm:block ml-auto truncate max-w-[160px]">
         {user?.clinic?.name}
       </span>
 

@@ -49,10 +49,10 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
               href={href}
               onClick={onNavClick}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-3 py-2.5 rounded-r-md text-sm font-medium transition-colors",
                 active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  ? "pl-2 pr-3 border-l-2 border-primary bg-primary/5 text-primary"
+                  : "px-3 text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               )}
             >
               <Icon className="h-4 w-4" />

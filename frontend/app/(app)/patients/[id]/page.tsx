@@ -47,6 +47,7 @@ import {
   Trash2,
   History,
 } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 import type { Patient, PatientHistory, MedicalRecord, User as UserType, AuditLog } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -242,27 +243,29 @@ export default function PatientDetailPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="profile">
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="h-4 w-4" /> {t("patients.detail.tabProfile")}
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <ClipboardList className="h-4 w-4" /> {t("patients.detail.tabHistory")}
-            {records.length > 0 && (
-              <span className="ml-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
-                {records.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="appointments" className="gap-2">
-            <Calendar className="h-4 w-4" /> {t("patients.detail.tabAppointments")}
-          </TabsTrigger>
-          {isAdminOrDoctor && (
-            <TabsTrigger value="audit" className="gap-2">
-              <History className="h-4 w-4" /> Audit Trail
+        <div className="overflow-x-auto">
+          <TabsList className="min-w-full w-max justify-start">
+            <TabsTrigger value="profile" className="gap-2 whitespace-nowrap">
+              <User className="h-4 w-4" /> {t("patients.detail.tabProfile")}
             </TabsTrigger>
-          )}
-        </TabsList>
+            <TabsTrigger value="history" className="gap-2 whitespace-nowrap">
+              <ClipboardList className="h-4 w-4" /> {t("patients.detail.tabHistory")}
+              {records.length > 0 && (
+                <span className="ml-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
+                  {records.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="appointments" className="gap-2 whitespace-nowrap">
+              <Calendar className="h-4 w-4" /> {t("patients.detail.tabAppointments")}
+            </TabsTrigger>
+            {isAdminOrDoctor && (
+              <TabsTrigger value="audit" className="gap-2 whitespace-nowrap">
+                <History className="h-4 w-4" /> Audit Trail
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
         {/* ── Profile Tab ───────────────────────────────────────── */}
         <TabsContent value="profile" className="space-y-4 mt-4">
@@ -457,9 +460,11 @@ export default function PatientDetailPage() {
           <Card>
             <CardContent className="pt-4">
               {!patient.appointments?.length ? (
-                <p className="text-sm text-muted-foreground text-center py-8">
-                  {t("patients.detail.noAppointments")}
-                </p>
+                <EmptyState
+                  icon={Calendar}
+                  title={t("patients.detail.noAppointments")}
+                  description="No appointments have been scheduled for this patient."
+                />
               ) : (
                 <div className="overflow-x-auto">
                 <Table>
