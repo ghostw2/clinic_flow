@@ -34,10 +34,7 @@ func runReminderBatch() {
 			log.Printf("reminder: email failed for appt %s: %v", appt.ID, err)
 			status = models.NotifFailed
 		}
-		if err := SendSMSReminder(appt); err != nil {
-			log.Printf("reminder: sms failed for appt %s: %v", appt.ID, err)
-		}
-		now := time.Now()
+now := time.Now()
 		notif := &models.Notification{
 			AppointmentID: appt.ID,
 			Type:          models.NotifEmail,

@@ -78,7 +78,6 @@ func CreateAppointment(clinicID uuid.UUID, input CreateAppointmentInput) (models
 	}
 	go func() {
 		_ = SendBookingConfirmation(appt)
-		_ = SendSMSBookingConfirmation(appt)
 	}()
 	return appt, nil
 }
@@ -128,10 +127,8 @@ func UpdateAppointment(id string, clinicID uuid.UUID, input UpdateAppointmentInp
 		switch {
 		case input.Status == "cancelled":
 			_ = SendCancellationNotice(appt)
-			_ = SendSMSCancellationNotice(appt)
 		case input.Datetime != "" && appt.Datetime != originalDatetime:
 			_ = SendRescheduledNotice(appt)
-			_ = SendSMSRescheduledNotice(appt)
 		}
 	}()
 	return appt, nil
