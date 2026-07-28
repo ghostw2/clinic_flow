@@ -14,6 +14,8 @@ import type {
   VitalSigns,
   ClinicPermissions,
   AuditLog,
+  Treatment,
+  TreatmentPayment,
 } from "@/types";
 
 // All requests go through Next.js proxy (/api/* → backend), keeping cookies same-origin
@@ -204,6 +206,55 @@ export const permissionsApi = {
 export const notificationsApi = {
   send: (appointment_id: string, type: "email" | "sms") =>
     api.post("/notifications/send", { appointment_id, type }),
+};
+
+// ── Treatments & Payment Plans ────────────────────────────────────────────────
+export const treatmentsApi = {
+  list: (params?: { patient_id?: string; status?: string; page?: number }) =>
+    api.get<{ treatments: Treatment[]; total: number }>("/treatments", { params }),
+
+  listForPatient: (patientId: string) =>
+    api.get<{ treatments: Treatment[]; total: number }>(`/patients/${patientId}/treatments`),
+
+  get: (id: string) => api.get<Treatment>(`/treatments/${id}`),
+
+  create: (data: {
+    patient_id: string;
+    name: string;
+    description?: string;
+    total_amount: number;
+    planned_visits?: number;
+    notes?: string;
+  }) => api.post<Treatment>("/treatments", data),
+
+  update: (
+    id: string,
+    data: Partial<{
+      name: string;
+      description: string;
+      total_amount: number;
+      planned_visits: number;
+      status: string;
+      notes: string;
+    }>
+  ) => api.put<Treatment>(`/treatments/${id}`, data),
+
+  cancel: (id: string) => api.delete(`/treatments/${id}`),
+
+  addPayment: (id: string, data: { amount: number; due_date?: string; notes?: string }) =>
+    api.post<TreatmentPayment>(`/treatments/${id}/payments`, data),
+
+  updatePayment: (
+    id: string,
+    paymentId: string,
+    data: Partial<{ amount: number; due_date: string; status: string; notes: string }>
+  ) => api.put<TreatmentPayment>(`/treatments/${id}/payments/${paymentId}`, data),
+
+  markPaid: (id: string, paymentId: string) =>
+    api.patch<TreatmentPayment>(`/treatments/${id}/payments/${paymentId}/pay`),
+
+  deletePayment: (id: string, paymentId: string) =>
+    api.delete(`/treatments/${id}/payments/${paymentId}`),
 };
 
 // ── Billing ───────────────────────────────────────────────────────────────────

@@ -11,12 +11,14 @@ import {
   Users,
   Settings,
   Stethoscope,
+  ClipboardList,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard",    key: "nav.dashboard",    icon: LayoutDashboard },
   { href: "/appointments", key: "nav.appointments", icon: Calendar },
   { href: "/patients",     key: "nav.patients",     icon: Users },
+  { href: "/treatments",   key: "nav.treatments",   icon: ClipboardList },
   { href: "/settings",     key: "nav.settings",     icon: Settings },
 ];
 

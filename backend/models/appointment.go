@@ -24,13 +24,15 @@ type Appointment struct {
 	Datetime  time.Time         `json:"datetime" gorm:"not null"`
 	Duration  int               `json:"duration" gorm:"not null;default:30"`
 	Status    AppointmentStatus `json:"status" gorm:"not null;default:'pending'"`
-	Notes     string            `json:"notes"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
-	DeletedAt gorm.DeletedAt    `json:"-" gorm:"index"`
+	Notes       string         `json:"notes"`
+	TreatmentID *uuid.UUID     `json:"treatment_id,omitempty" gorm:"type:uuid"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 
-	Patient Patient `json:"patient,omitempty" gorm:"foreignKey:PatientID"`
-	Doctor  User    `json:"doctor,omitempty" gorm:"foreignKey:DoctorID"`
+	Patient   Patient    `json:"patient,omitempty" gorm:"foreignKey:PatientID"`
+	Doctor    User       `json:"doctor,omitempty" gorm:"foreignKey:DoctorID"`
+	Treatment *Treatment `json:"treatment,omitempty" gorm:"foreignKey:TreatmentID"`
 }
 
 func (a *Appointment) BeforeCreate(tx *gorm.DB) error {
@@ -41,30 +43,32 @@ func (a *Appointment) BeforeCreate(tx *gorm.DB) error {
 }
 
 type AppointmentResponse struct {
-	ID        uuid.UUID         `json:"id"`
-	PatientID uuid.UUID         `json:"patient_id"`
-	DoctorID  uuid.UUID         `json:"doctor_id"`
-	Datetime  time.Time         `json:"datetime"`
-	Duration  int               `json:"duration"`
-	Status    AppointmentStatus `json:"status"`
-	Notes     string            `json:"notes,omitempty"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
-	Patient   *PatientResponse  `json:"patient,omitempty"`
-	Doctor    *UserResponse     `json:"doctor,omitempty"`
+	ID          uuid.UUID         `json:"id"`
+	PatientID   uuid.UUID         `json:"patient_id"`
+	DoctorID    uuid.UUID         `json:"doctor_id"`
+	TreatmentID *uuid.UUID        `json:"treatment_id,omitempty"`
+	Datetime    time.Time         `json:"datetime"`
+	Duration    int               `json:"duration"`
+	Status      AppointmentStatus `json:"status"`
+	Notes       string            `json:"notes,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+	Patient     *PatientResponse  `json:"patient,omitempty"`
+	Doctor      *UserResponse     `json:"doctor,omitempty"`
 }
 
 func (a Appointment) ToResponse() AppointmentResponse {
 	r := AppointmentResponse{
-		ID:        a.ID,
-		PatientID: a.PatientID,
-		DoctorID:  a.DoctorID,
-		Datetime:  a.Datetime,
-		Duration:  a.Duration,
-		Status:    a.Status,
-		Notes:     a.Notes,
-		CreatedAt: a.CreatedAt,
-		UpdatedAt: a.UpdatedAt,
+		ID:          a.ID,
+		PatientID:   a.PatientID,
+		DoctorID:    a.DoctorID,
+		TreatmentID: a.TreatmentID,
+		Datetime:    a.Datetime,
+		Duration:    a.Duration,
+		Status:      a.Status,
+		Notes:       a.Notes,
+		CreatedAt:   a.CreatedAt,
+		UpdatedAt:   a.UpdatedAt,
 	}
 	if a.Patient.ID != uuid.Nil {
 		p := a.Patient.ToResponse()

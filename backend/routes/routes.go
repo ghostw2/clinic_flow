@@ -76,6 +76,18 @@ func Register(r *gin.Engine) {
 		protected.POST("/billing/checkout", handlers.CreateCheckout)
 		protected.POST("/billing/portal", middleware.RequireSubscription(), handlers.CreatePortal)
 
+		// Treatments & Payment Plans
+		protected.GET("/treatments", handlers.GetTreatments)
+		protected.POST("/treatments", middleware.RequirePermission("treatment.create"), handlers.CreateTreatment)
+		protected.GET("/treatments/:id", handlers.GetTreatment)
+		protected.PUT("/treatments/:id", middleware.RequirePermission("treatment.update"), handlers.UpdateTreatment)
+		protected.DELETE("/treatments/:id", middleware.RequirePermission("treatment.update"), handlers.CancelTreatment)
+		protected.POST("/treatments/:id/payments", middleware.RequirePermission("payment.record"), handlers.AddPayment)
+		protected.PUT("/treatments/:id/payments/:paymentId", middleware.RequirePermission("payment.record"), handlers.UpdatePayment)
+		protected.PATCH("/treatments/:id/payments/:paymentId/pay", middleware.RequirePermission("payment.record"), handlers.MarkPaymentPaid)
+		protected.DELETE("/treatments/:id/payments/:paymentId", middleware.RequirePermission("treatment.update"), handlers.DeletePayment)
+		protected.GET("/patients/:id/treatments", handlers.GetPatientTreatments)
+
 		// Settings — Permissions
 		protected.GET("/settings/permissions", handlers.GetPermissions)
 		protected.PUT("/settings/permissions", middleware.RequireRole("admin"), handlers.UpdatePermissions)

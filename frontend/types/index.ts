@@ -151,9 +151,52 @@ export type PermissionAction =
   | "record.update"
   | "record.delete"
   | "document.upload"
-  | "document.delete";
+  | "document.delete"
+  | "treatment.create"
+  | "treatment.update"
+  | "payment.record";
 
 export type ClinicPermissions = Record<string, PermissionAction[]>;
+
+export type TreatmentStatus = "active" | "completed" | "cancelled";
+export type PaymentStatus = "pending" | "partial" | "paid";
+export type PaymentInstallmentStatus = "pending" | "paid" | "overdue";
+
+export interface TreatmentPayment {
+  id: string;
+  treatment_id: string;
+  clinic_id: string;
+  amount: number;
+  due_date?: string;
+  paid_at?: string;
+  status: PaymentInstallmentStatus;
+  notes?: string;
+  recorded_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Treatment {
+  id: string;
+  clinic_id: string;
+  patient_id: string;
+  created_by: string;
+  name: string;
+  description?: string;
+  total_amount: number;
+  planned_visits: number;
+  status: TreatmentStatus;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  patient?: Patient;
+  payments?: TreatmentPayment[];
+  appointments?: Appointment[];
+  amount_paid: number;
+  amount_remaining: number;
+  payment_status: PaymentStatus;
+  visits_used: number;
+}
 
 export interface AuditLog {
   id: string;

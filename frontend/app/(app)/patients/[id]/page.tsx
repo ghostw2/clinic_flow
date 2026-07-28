@@ -3,7 +3,9 @@
 import { useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { useParams, useRouter } from "next/navigation";
-import { patientsApi, medicalRecordsApi, usersApi } from "@/lib/api";
+import { patientsApi, medicalRecordsApi, usersApi, treatmentsApi } from "@/lib/api";
+import { TreatmentForm } from "@/components/TreatmentForm";
+import { TreatmentDetailSheet } from "@/components/TreatmentDetailSheet";
 import { useI18n } from "@/contexts/i18nContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +50,7 @@ import {
   History,
 } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
-import type { Patient, PatientHistory, MedicalRecord, User as UserType, AuditLog } from "@/types";
+import type { Patient, PatientHistory, MedicalRecord, User as UserType, AuditLog, Treatment } from "@/types";
 import { usePermissions } from "@/hooks/usePermissions";
 
 function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
@@ -78,6 +80,9 @@ export default function PatientDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
+  const [treatmentFormOpen, setTreatmentFormOpen] = useState(false);
+  const [editingTreatment, setEditingTreatment] = useState<Treatment | undefined>(undefined);
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState<string | null>(null);
   const { can } = usePermissions();
 
   const isAdmin = user?.role === "admin";
@@ -103,8 +108,14 @@ export default function PatientDetailPage() {
     () => patientsApi.audit(id).then((r) => r.data)
   );
 
+  const { data: treatmentsData, mutate: mutateTreatments } = useSWR<{ treatments: Treatment[]; total: number }>(
+    id ? `patients/${id}/treatments` : null,
+    () => treatmentsApi.listForPatient(id).then((r) => r.data)
+  );
+
   const records = history?.records ?? [];
   const auditLogs = auditData?.logs ?? [];
+  const patientTreatments = treatmentsData?.treatments ?? [];
 
   const openNewRecord = () => {
     setEditingRecord(null);
@@ -258,6 +269,14 @@ export default function PatientDetailPage() {
             </TabsTrigger>
             <TabsTrigger value="appointments" className="gap-2 whitespace-nowrap">
               <Calendar className="h-4 w-4" /> {t("patients.detail.tabAppointments")}
+            </TabsTrigger>
+            <TabsTrigger value="treatments" className="gap-2 whitespace-nowrap">
+              <Stethoscope className="h-4 w-4" /> Treatments
+              {patientTreatments.length > 0 && (
+                <span className="ml-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
+                  {patientTreatments.length}
+                </span>
+              )}
             </TabsTrigger>
             {isAdminOrDoctor && (
               <TabsTrigger value="audit" className="gap-2 whitespace-nowrap">
@@ -501,6 +520,91 @@ export default function PatientDetailPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* ── Treatments Tab ────────────────────────────────────── */}
+        <TabsContent value="treatments" className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">{patientTreatments.length} treatment course{patientTreatments.length !== 1 ? "s" : ""}</p>
+            {can("treatment.create") && (
+              <Button size="sm" onClick={() => { setEditingTreatment(undefined); setTreatmentFormOpen(true); }}>
+                <Plus className="h-3.5 w-3.5 mr-1" /> New Treatment
+              </Button>
+            )}
+          </div>
+          {patientTreatments.length === 0 ? (
+            <EmptyState
+              icon={Stethoscope}
+              title="No treatment courses"
+              description="No treatment courses have been created for this patient."
+              action={
+                can("treatment.create")
+                  ? { label: "New Treatment", onClick: () => setTreatmentFormOpen(true) }
+                  : undefined
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {patientTreatments.map((t) => (
+                <Card
+                  key={t.id}
+                  className="cursor-pointer hover:border-primary/40 transition-colors"
+                  onClick={() => setSelectedTreatmentId(t.id)}
+                >
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-800 truncate">{t.name}</p>
+                        {t.description && <p className="text-sm text-muted-foreground truncate">{t.description}</p>}
+                      </div>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <span className={`text-xs px-2 py-0.5 rounded border font-medium ${
+                          t.payment_status === "paid" ? "bg-green-50 text-green-700 border-green-200" :
+                          t.payment_status === "partial" ? "bg-yellow-50 text-yellow-700 border-yellow-200" :
+                          "bg-slate-50 text-slate-600 border-slate-200"
+                        }`}>
+                          {t.payment_status === "paid" ? "Fully Paid" : t.payment_status === "partial" ? "Partial" : "Pending"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="font-medium">€{t.total_amount.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Paid</p>
+                        <p className="font-medium text-green-700">€{t.amount_paid.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Visits</p>
+                        <p className="font-medium">{t.visits_used}/{t.planned_visits}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full"
+                        style={{ width: `${Math.min(100, Math.round((t.amount_paid / t.total_amount) * 100))}%` }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+          <TreatmentForm
+            open={treatmentFormOpen}
+            onClose={() => { setTreatmentFormOpen(false); setEditingTreatment(undefined); }}
+            onSuccess={() => mutateTreatments()}
+            patientId={id}
+            treatment={editingTreatment}
+          />
+          <TreatmentDetailSheet
+            treatmentId={selectedTreatmentId}
+            onClose={() => setSelectedTreatmentId(null)}
+            onEdit={(t) => { setSelectedTreatmentId(null); setEditingTreatment(t); setTreatmentFormOpen(true); }}
+            onRefresh={() => mutateTreatments()}
+          />
         </TabsContent>
 
         {/* ── Audit Trail Tab ───────────────────────────────────── */}
